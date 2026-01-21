@@ -3,6 +3,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app__workspace {
@@ -10,6 +11,15 @@
   min-height: 0;
 }
 
+.loading {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-base);
+}
+
+/*
+ * Project Picker
+ */
 .project-picker {
   width: 100%;
   height: 100%;
@@ -23,13 +33,30 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-6);
+  text-align: center;
+}
+
+.project-picker__mark {
+  width: 48px;
+  height: 48px;
+  color: var(--text-secondary);
+}
+
+.project-picker__mark svg {
+  width: 100%;
+  height: 100%;
+}
+
+.project-picker__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .project-picker__title {
-  font-family: var(--font-sans);
-  font-size: 2rem;
-  font-weight: 500;
+  font-size: 24px;
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }
@@ -41,19 +68,47 @@
 
 .project-picker__button {
   margin-top: var(--space-4);
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-default);
+  color: var(--text-primary);
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .project-picker__button:hover {
-  background: var(--bg-surface-active);
-  border-color: var(--border-active);
-  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--border-emphasis);
+}
+
+.project-picker__button-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+
+.project-picker__hint {
+  margin-top: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.project-picker__hint kbd {
+  padding: 2px 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--text-secondary);
 }

@@ -1,43 +1,119 @@
-.top-bar {
-  height: 36px;
+/*
+ * TopBar
+ * Clean, minimal, native-feeling
+ */
+
+.topbar {
+  height: 40px;
   display: flex;
   align-items: center;
-  padding: 0 var(--space-2);
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-subtle);
-  -webkit-app-region: drag;
+  padding: 0 var(--space-3);
+  gap: var(--space-3);
+  background: var(--bg-base);
+  user-select: none;
 }
 
-.top-bar__projects {
+/*
+ * Traffic lights
+ */
+.traffic-lights {
   display: flex;
   align-items: center;
-  gap: 2px;
-  -webkit-app-region: no-drag;
+  gap: 8px;
 }
 
-.top-bar__project {
+.traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter var(--transition-fast);
+}
+
+.traffic-light svg {
+  width: 8px;
+  height: 8px;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.traffic-light--close {
+  background: var(--traffic-close);
+}
+
+.traffic-light--minimize {
+  background: var(--traffic-minimize);
+}
+
+.traffic-light--maximize {
+  background: var(--traffic-maximize);
+}
+
+.traffic-light--inactive {
+  background: var(--traffic-inactive);
+}
+
+.traffic-light--inactive svg {
+  display: none;
+}
+
+.traffic-light:hover {
+  filter: brightness(1.1);
+}
+
+.traffic-light:active {
+  filter: brightness(0.9);
+}
+
+/*
+ * Tabs
+ */
+.topbar__tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.tab {
   padding: var(--space-1) var(--space-3);
+  height: 28px;
+  display: flex;
+  align-items: center;
   background: transparent;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   font-family: var(--font-sans);
   font-size: var(--text-xs);
   color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: 
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
-.top-bar__project:hover {
-  background: var(--bg-elevated);
+.tab:hover {
+  background: var(--bg-hover);
   color: var(--text-secondary);
 }
 
-.top-bar__project--active {
+.tab--active {
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
 
-.top-bar__add {
+.tab__name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Add button
+ */
+.topbar__add {
   width: 24px;
   height: 24px;
   display: flex;
@@ -45,15 +121,19 @@
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: 5px;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: 
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
-.top-bar__add:hover {
-  background: var(--bg-elevated);
+.topbar__add svg {
+  width: 12px;
+  height: 12px;
+}
+
+.topbar__add:hover {
+  background: var(--bg-hover);
   color: var(--text-secondary);
 }
