@@ -1,10 +1,12 @@
 mod daemon;
+mod file;
 mod pty;
 
 use daemon::{
     daemon_attach, daemon_detach, daemon_kill, daemon_list, daemon_resize, daemon_spawn,
     daemon_write, DaemonManager,
 };
+use file::{file_exists, list_files, read_file, write_file};
 use pty::{pty_kill, pty_resize, pty_spawn, pty_write, PtyManager};
 use tauri::WebviewWindow;
 
@@ -67,7 +69,12 @@ pub fn run() {
             daemon_detach,
             daemon_kill,
             daemon_list,
-            daemon_attach
+            daemon_attach,
+            // File operations
+            read_file,
+            write_file,
+            file_exists,
+            list_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

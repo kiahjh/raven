@@ -2,6 +2,7 @@ import { Switch, Match } from "solid-js";
 import { SurfaceLeaf, surfaceState, setFocused } from "../store/surface";
 import { projectState } from "../store/project";
 import { TerminalSurface } from "./TerminalSurface";
+import { EditorSurface } from "./EditorSurface";
 import "./Surface.css";
 
 interface Props {
@@ -43,11 +44,11 @@ export function Surface(props: Props) {
           />
         </Match>
         <Match when={props.node.type === "editor"}>
-          <div class="surface__content">
-            <div class="surface__placeholder">
-              <span class="surface__type">editor (coming soon)</span>
-            </div>
-          </div>
+          <EditorSurface
+            id={props.node.id}
+            focused={isFocused()}
+            filePath={props.node.filePath}
+          />
         </Match>
       </Switch>
     </div>

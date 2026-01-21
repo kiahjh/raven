@@ -1,0 +1,94 @@
+.file-finder__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  z-index: 1000;
+}
+
+.file-finder {
+  width: 100%;
+  max-width: 600px;
+  background: #1a1a1c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.file-finder__input-wrapper {
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.file-finder__input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #121214;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #e4e4e7;
+  font-family: "Berkeley Mono", "SF Mono", monospace;
+  font-size: 14px;
+  outline: none;
+}
+
+.file-finder__input:focus {
+  border-color: #f59e0b;
+}
+
+.file-finder__input::placeholder {
+  color: #52525b;
+}
+
+.file-finder__results {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.file-finder__item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: "Berkeley Mono", "SF Mono", monospace;
+  font-size: 13px;
+  color: #a1a1aa;
+}
+
+.file-finder__item--selected {
+  background: rgba(245, 158, 11, 0.1);
+  color: #e4e4e7;
+}
+
+.file-finder__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.file-finder__item--selected:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.file-finder__path {
+  word-break: break-all;
+}
+
+.file-finder__match {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.file-finder__loading,
+.file-finder__error,
+.file-finder__empty {
+  padding: 24px;
+  text-align: center;
+  color: #71717a;
+  font-family: "Berkeley Mono", "SF Mono", monospace;
+  font-size: 13px;
+}
+
+.file-finder__error {
+  color: #ef4444;
+}

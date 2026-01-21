@@ -1,0 +1,335 @@
+.editor-surface {
+  width: 100%;
+  height: 100%;
+  background: #121214;
+  outline: none;
+  overflow: hidden;
+  font-family: "Berkeley Mono", "SF Mono", "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.editor-surface--focused {
+  /* Focus indicator handled by parent surface */
+}
+
+.editor-surface__content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-surface__lines {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  padding: 8px 0;
+  cursor: text;
+}
+
+.editor-surface__lines-inner {
+  position: relative;
+  width: 100%;
+}
+
+.editor-surface__line {
+  display: flex;
+  padding: 0 8px;
+  min-height: 20px;
+  line-height: 20px;
+  align-items: flex-start;
+}
+
+.editor-surface__line--cursor {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.editor-surface__line-number {
+  flex-shrink: 0;
+  padding-right: 16px;
+  text-align: right;
+  color: #52525b;
+  user-select: none;
+  min-width: 3ch;
+}
+
+.editor-surface__line-content {
+  color: #e4e4e7;
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.editor-surface__cursor {
+  position: relative;
+}
+
+.editor-surface__cursor--block {
+  background: #f59e0b;
+  color: #121214;
+}
+
+.editor-surface__cursor--bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #f59e0b;
+}
+
+.editor-surface__cursor--blink {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.editor-surface__status {
+  display: flex;
+  gap: 16px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: #71717a;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.editor-surface__filename {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-surface__dirty {
+  color: #f59e0b;
+  margin-left: 4px;
+}
+
+.editor-surface__pending {
+  color: #f59e0b;
+  font-family: monospace;
+  padding: 0 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 2px;
+}
+
+.editor-surface__mode {
+  font-weight: 500;
+  color: #f59e0b;
+}
+
+.editor-surface__position {
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-surface__loading,
+.editor-surface__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #71717a;
+}
+
+.editor-surface__error {
+  color: #ef4444;
+}
+
+/* Visual mode selection */
+.editor-surface__selection {
+  background: rgba(59, 130, 246, 0.4);
+  color: #e4e4e7;
+}
+
+.editor-surface__line--visual {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.editor-surface__cursor--visual {
+  background: #3b82f6;
+  color: #121214;
+}
+
+.editor-surface__visual-mode {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+/* Search UI */
+.editor-surface__search {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editor-surface__search-prompt {
+  color: #f59e0b;
+  margin-right: 4px;
+  font-weight: 500;
+}
+
+.editor-surface__search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e4e4e7;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.editor-surface__search-input::placeholder {
+  color: #52525b;
+}
+
+.editor-surface__search-info {
+  color: #a1a1aa;
+  font-size: 11px;
+}
+
+/* Search match highlighting */
+.editor-surface__search-match {
+  background: rgba(234, 179, 8, 0.3);
+  border-radius: 2px;
+}
+
+.editor-surface__search-match--current {
+  background: rgba(234, 179, 8, 0.6);
+}
+
+/* ============================================================================
+ * Syntax Highlighting Theme (inspired by GitHub Dark)
+ * ============================================================================ */
+
+/* Keywords: control flow, declarations */
+.syntax-keyword {
+  color: #ff7b72;
+}
+
+/* Strings and string literals */
+.syntax-string {
+  color: #a5d6ff;
+}
+
+/* Numbers and numeric literals */
+.syntax-number {
+  color: #79c0ff;
+}
+
+/* Booleans: true/false */
+.syntax-boolean {
+  color: #79c0ff;
+}
+
+/* Comments */
+.syntax-comment {
+  color: #8b949e;
+  font-style: italic;
+}
+
+/* Functions: definitions and calls */
+.syntax-function {
+  color: #d2a8ff;
+}
+
+/* Built-in functions */
+.syntax-function-builtin {
+  color: #d2a8ff;
+}
+
+/* Types: classes, interfaces, type names */
+.syntax-type {
+  color: #ffa657;
+}
+
+/* Built-in types */
+.syntax-type-builtin {
+  color: #ffa657;
+}
+
+/* Variables */
+.syntax-variable {
+  color: #e4e4e7;
+}
+
+/* Built-in variables (this, self, etc.) */
+.syntax-variable-builtin {
+  color: #79c0ff;
+}
+
+/* Parameters */
+.syntax-parameter {
+  color: #ffa657;
+}
+
+/* Properties and fields */
+.syntax-property {
+  color: #7ee787;
+}
+
+/* Attributes (decorators, annotations) */
+.syntax-attribute {
+  color: #d2a8ff;
+}
+
+/* Constants */
+.syntax-constant {
+  color: #79c0ff;
+}
+
+/* Built-in constants (null, undefined, etc.) */
+.syntax-constant-builtin {
+  color: #79c0ff;
+}
+
+/* Operators: +, -, =, etc. */
+.syntax-operator {
+  color: #ff7b72;
+}
+
+/* Punctuation: brackets, delimiters */
+.syntax-punctuation {
+  color: #8b949e;
+}
+
+/* HTML/JSX tags */
+.syntax-tag {
+  color: #7ee787;
+}
+
+/* Namespaces and modules */
+.syntax-namespace {
+  color: #ffa657;
+}
+
+/* Labels */
+.syntax-label {
+  color: #ffa657;
+}
+
+/* Constructors */
+.syntax-constructor {
+  color: #d2a8ff;
+}
+
+/* Escape sequences in strings */
+.syntax-escape {
+  color: #79c0ff;
+}
+
+/* Embedded code */
+.syntax-embedded {
+  color: #ffa657;
+}

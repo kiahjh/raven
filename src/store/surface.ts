@@ -20,6 +20,8 @@ export interface SurfaceLeaf {
   kind: "leaf";
   id: string;
   type: SurfaceType;
+  /** File path for editor surfaces (undefined for new/scratch files) */
+  filePath?: string;
 }
 
 // A split node contains children arranged horizontally or vertically
@@ -410,24 +412,50 @@ function findAdjacentSurface(
 }
 
 // Set surface type
-export function setSurfaceType(id: string, type: SurfaceType) {
+export function setSurfaceType(id: string, type: SurfaceType, filePath?: string) {
   const path = findNodePath(state.root, id);
   if (!path) return;
   
   if (path.length === 0) {
-    setState("root", "type" as any, type);
+    setState("root", (root) => {
+      if (root.kind === "leaf") {
+        return { ...root, type, filePath };
+      }
+      return root;
+    });
   } else {
     setState("root", (root) => {
       const newRoot = JSON.parse(JSON.stringify(root)) as SurfaceNode;
-      let target: any = newRoot;
+      let target: SurfaceNode = newRoot;
       for (let i = 0; i < path.length; i++) {
-        target = target[path[i]];
+        if (target.kind === "split") {
+          target = target.children[path[i + 1] as number];
+          i++; // skip the "children" part
+        }
       }
-      target.type = type;
+      if (target.kind === "leaf") {
+        target.type = type;
+        target.filePath = filePath;
+      }
       return newRoot;
     });
   }
   notifyChange();
+}
+
+// Get surface leaf by ID
+export function getSurfaceLeaf(id: string): SurfaceLeaf | null {
+  function find(node: SurfaceNode): SurfaceLeaf | null {
+    if (node.kind === "leaf") {
+      return node.id === id ? node : null;
+    }
+    for (const child of node.children) {
+      const found = find(child);
+      if (found) return found;
+    }
+    return null;
+  }
+  return find(state.root);
 }
 
 // Update sizes of a split node
