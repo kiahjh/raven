@@ -1,0 +1,20 @@
+[package]
+name = "raven-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "raven-daemon"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full", "net", "io-util", "sync"] }
+portable-pty = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+parking_lot = "0.12"
+directories = "5"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1"
