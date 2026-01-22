@@ -1,3 +1,7 @@
+/*
+ * FileFinder - Clean file picker
+ */
+
 .file-finder__overlay {
   position: fixed;
   inset: 0;
@@ -7,67 +11,71 @@
   justify-content: center;
   padding-top: 15vh;
   z-index: 1000;
+  animation: fadeIn var(--transition-fast);
 }
 
 .file-finder {
   width: 100%;
-  max-width: 600px;
-  background: #1a1a1c;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  max-width: 560px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
+  animation: slideUp var(--transition-normal);
 }
 
 .file-finder__input-wrapper {
-  padding: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .file-finder__input {
   width: 100%;
-  padding: 8px 12px;
-  background: #121214;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: #e4e4e7;
-  font-family: "Berkeley Mono", "SF Mono", monospace;
-  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
   outline: none;
+  transition: border-color var(--transition-fast);
 }
 
 .file-finder__input:focus {
-  border-color: #f59e0b;
+  border-color: var(--accent);
 }
 
 .file-finder__input::placeholder {
-  color: #52525b;
+  color: var(--text-muted);
 }
 
 .file-finder__results {
-  max-height: 400px;
+  max-height: 360px;
   overflow-y: auto;
 }
 
 .file-finder__item {
-  padding: 8px 16px;
-  cursor: pointer;
-  font-family: "Berkeley Mono", "SF Mono", monospace;
-  font-size: 13px;
-  color: #a1a1aa;
+  padding: var(--space-2) var(--space-4);
+  cursor: default;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition: background var(--transition-fast);
 }
 
 .file-finder__item--selected {
-  background: rgba(245, 158, 11, 0.1);
-  color: #e4e4e7;
+  background: var(--accent-muted);
+  color: var(--text-primary);
 }
 
 .file-finder__item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
 }
 
 .file-finder__item--selected:hover {
-  background: rgba(245, 158, 11, 0.15);
+  background: var(--accent-muted);
 }
 
 .file-finder__path {
@@ -75,20 +83,19 @@
 }
 
 .file-finder__match {
-  color: #f59e0b;
+  color: var(--accent);
   font-weight: 500;
 }
 
 .file-finder__loading,
 .file-finder__error,
 .file-finder__empty {
-  padding: 24px;
+  padding: var(--space-8);
   text-align: center;
-  color: #71717a;
-  font-family: "Berkeley Mono", "SF Mono", monospace;
-  font-size: 13px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
 }
 
 .file-finder__error {
-  color: #ef4444;
+  color: var(--red);
 }

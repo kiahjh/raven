@@ -1,9 +1,14 @@
+/*
+ * App
+ */
+
 .app {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--bg-base);
 }
 
 .app__workspace {
@@ -17,9 +22,7 @@
   background: var(--bg-base);
 }
 
-/*
- * Project Picker
- */
+/* Project Picker */
 .project-picker {
   width: 100%;
   height: 100%;
@@ -38,9 +41,9 @@
 }
 
 .project-picker__mark {
-  width: 48px;
-  height: 48px;
-  color: var(--text-secondary);
+  width: 64px;
+  height: 64px;
+  color: var(--text-tertiary);
 }
 
 .project-picker__mark svg {
@@ -55,15 +58,15 @@
 }
 
 .project-picker__title {
-  font-size: 24px;
+  font-size: var(--text-3xl);
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }
 
 .project-picker__subtitle {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
 }
 
 .project-picker__button {
@@ -72,7 +75,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  background: var(--bg-elevated);
+  background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   font-family: var(--font-sans);
@@ -84,8 +87,8 @@
 }
 
 .project-picker__button:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-emphasis);
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
 }
 
 .project-picker__button-icon {
@@ -105,7 +108,7 @@
 
 .project-picker__hint kbd {
   padding: 2px 6px;
-  background: var(--bg-elevated);
+  background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);

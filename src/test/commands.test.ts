@@ -232,6 +232,53 @@ describe("command execution", () => {
     });
   });
 
+  describe("indent and outdent", () => {
+    it(">> indents current line", () => {
+      const state = stateWithContent("hello\nworld", 0, 0);
+      const result = executeVimCommand(state, ">>");
+      expect(getText(result.buffer)).toBe("    hello\nworld");
+      // Cursor should move to first non-whitespace
+      expect(result.cursor.column).toBe(4);
+    });
+
+    it("<< outdents current line", () => {
+      const state = stateWithContent("    hello\nworld", 0, 4);
+      const result = executeVimCommand(state, "<<");
+      expect(getText(result.buffer)).toBe("hello\nworld");
+      expect(result.cursor.column).toBe(0);
+    });
+
+    it("2>> indents two lines", () => {
+      const state = stateWithContent("hello\nworld\nfoo", 0, 0);
+      const result = executeVimCommand(state, "2>>");
+      expect(getText(result.buffer)).toBe("    hello\n    world\nfoo");
+    });
+
+    it("2<< outdents two lines", () => {
+      const state = stateWithContent("    hello\n    world\nfoo", 0, 4);
+      const result = executeVimCommand(state, "2<<");
+      expect(getText(result.buffer)).toBe("hello\nworld\nfoo");
+    });
+
+    it(">j indents current and next line", () => {
+      const state = stateWithContent("hello\nworld\nfoo", 0, 0);
+      const result = executeVimCommand(state, ">j");
+      expect(getText(result.buffer)).toBe("    hello\n    world\nfoo");
+    });
+
+    it("<j outdents current and next line", () => {
+      const state = stateWithContent("    hello\n    world\nfoo", 0, 4);
+      const result = executeVimCommand(state, "<j");
+      expect(getText(result.buffer)).toBe("hello\nworld\nfoo");
+    });
+
+    it("<< does nothing when line has no indent", () => {
+      const state = stateWithContent("hello\nworld", 0, 0);
+      const result = executeVimCommand(state, "<<");
+      expect(getText(result.buffer)).toBe("hello\nworld");
+    });
+  });
+
   describe("insert mode entries", () => {
     it("i enters insert mode", () => {
       const state = stateWithContent("hello", 0, 2);

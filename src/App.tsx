@@ -65,24 +65,15 @@ function ProjectPicker() {
   return (
     <div class="project-picker">
       <div class="project-picker__content">
-        {/* Abstract raven mark */}
         <div class="project-picker__mark">
-          <svg viewBox="0 0 48 48" fill="none">
-            <path 
-              d="M24 8C16 8 10 16 10 24c0 5 2.5 9.5 6.5 12.5L14 44l6-3 4 4 4-4 6 3-2.5-7.5C35.5 33.5 38 29 38 24c0-8-6-16-14-16z"
-              fill="currentColor"
-              opacity="0.9"
-            />
-            <circle cx="19" cy="22" r="2.5" fill="var(--depth-2)"/>
-            <circle cx="29" cy="22" r="2.5" fill="var(--depth-2)"/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
           </svg>
         </div>
         
         <div class="project-picker__text">
           <h1 class="project-picker__title">Raven</h1>
-          <p class="project-picker__subtitle">
-            Your focused workspace
-          </p>
+          <p class="project-picker__subtitle">Open a folder to get started</p>
         </div>
         
         <button class="project-picker__button" onClick={handleOpen}>

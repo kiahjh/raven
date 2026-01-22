@@ -1,5 +1,6 @@
 mod daemon;
 mod file;
+mod lsp;
 mod pty;
 
 use daemon::{
@@ -7,6 +8,10 @@ use daemon::{
     daemon_write, DaemonManager,
 };
 use file::{file_exists, list_files, read_file, write_file};
+use lsp::{
+    lsp_change_document, lsp_close_document, lsp_completion, lsp_find_root, lsp_goto_definition,
+    lsp_hover, lsp_open_document, lsp_references, lsp_start, lsp_stop, LspManager,
+};
 use pty::{pty_kill, pty_resize, pty_spawn, pty_write, PtyManager};
 use tauri::WebviewWindow;
 
@@ -49,6 +54,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(PtyManager::new())
         .manage(DaemonManager::new())
+        .manage(LspManager::new())
         .setup(|_app| Ok(()))
         .invoke_handler(tauri::generate_handler![
             // Window controls
@@ -74,7 +80,18 @@ pub fn run() {
             read_file,
             write_file,
             file_exists,
-            list_files
+            list_files,
+            // LSP commands
+            lsp_find_root,
+            lsp_start,
+            lsp_stop,
+            lsp_open_document,
+            lsp_change_document,
+            lsp_close_document,
+            lsp_goto_definition,
+            lsp_hover,
+            lsp_completion,
+            lsp_references
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -24,14 +24,16 @@ export function Surface(props: Props) {
       <Switch>
         <Match when={props.node.type === "empty"}>
           <div class="surface__content">
-            <div class="surface__hints">
-              <div class="surface__hint">
-                <kbd>e</kbd>
-                <span>editor</span>
-              </div>
-              <div class="surface__hint">
-                <kbd>t</kbd>
-                <span>terminal</span>
+            <div class="surface__placeholder">
+              <div class="surface__hints">
+                <div class="surface__hint">
+                  <span class="surface__hint-key">e</span>
+                  <span class="surface__hint-label">editor</span>
+                </div>
+                <div class="surface__hint">
+                  <span class="surface__hint-key">t</span>
+                  <span class="surface__hint-label">terminal</span>
+                </div>
               </div>
             </div>
           </div>

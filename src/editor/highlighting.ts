@@ -618,6 +618,13 @@ export class Highlighter {
   }
 
   /**
+   * Check if a language is loaded and ready to use.
+   */
+  isLanguageLoaded(langId: LanguageId): boolean {
+    return this.languages.has(langId) && this.queries.has(langId);
+  }
+
+  /**
    * Load a language grammar if not already loaded.
    */
   async loadLanguage(langId: LanguageId): Promise<boolean> {
@@ -672,6 +679,23 @@ export class Highlighter {
     this.currentLanguage = langId;
     this.currentTree = null; // Reset tree when language changes
     return true;
+  }
+
+  /**
+   * Parse a raw string with a language (without file context).
+   * Useful for parsing code snippets like in hover popups.
+   */
+  parseString(langId: LanguageId, source: string): HighlightResult {
+    // Reset file context since this is a standalone parse
+    this.currentFilePath = null;
+    this.currentTree = null;
+    
+    // Set language
+    if (langId !== this.currentLanguage) {
+      this.setLanguage(langId);
+    }
+    
+    return this.parse(source);
   }
 
   /**

@@ -15,6 +15,8 @@ import {
   deleteRange,
   deleteCharAt,
   comparePositions,
+  getLineIndent,
+  computeSmartIndent,
 } from "./buffer";
 import { EditorState } from "./editor";
 import {
@@ -30,6 +32,9 @@ import {
   getWordUnderCursorWithBounds,
 } from "./vim";
 import { UndoHistory, pushHistory, undo, redo } from "./history";
+
+// Default indent size in spaces
+const INDENT_SIZE = 4;
 
 // ============================================================================
 // Extended Editor State
@@ -194,8 +199,8 @@ export function executeOperator(
     }
   }
   
-  // Handle line-wise operators (dd, cc, yy)
-  if (command.name === "dd" || command.name === "cc" || command.name === "yy") {
+  // Handle line-wise operators (dd, cc, yy, >>, <<)
+  if (command.name === "dd" || command.name === "cc" || command.name === "yy" || command.name === ">>" || command.name === "<<") {
     linewise = true;
     const startLine = state.cursor.line;
     const endLine = Math.min(startLine + command.count - 1, getLineCount(state.buffer) - 1);
@@ -317,7 +322,7 @@ export function executeOperator(
     
     case ">": {
       // Indent
-      const newBuffer = indentLines(state.buffer, range.start.line, range.end.line, 2);
+      const newBuffer = indentLines(state.buffer, range.start.line, range.end.line, INDENT_SIZE);
       return {
         state: {
           ...state,
@@ -335,7 +340,7 @@ export function executeOperator(
     
     case "<": {
       // Outdent
-      const newBuffer = outdentLines(state.buffer, range.start.line, range.end.line, 2);
+      const newBuffer = outdentLines(state.buffer, range.start.line, range.end.line, INDENT_SIZE);
       return {
         state: {
           ...state,
@@ -411,19 +416,24 @@ export function executeAction(
     }
     
     case "o": {
-      // Open line below
+      // Open line below with smart indentation
       const newHistory = pushHistory(state.history, state.buffer, state.cursor);
       const currentLine = state.cursor.line;
+      const lineLength = getLineLength(state.buffer, currentLine);
+      
+      // Compute indent based on current line (as if cursor was at end of line)
+      const indent = computeSmartIndent(state.buffer, currentLine, lineLength);
+      
       const newBuffer = insertText(
         state.buffer,
-        { line: currentLine, column: getLineLength(state.buffer, currentLine) },
-        "\n"
+        { line: currentLine, column: lineLength },
+        "\n" + indent
       );
       return {
         state: {
           ...state,
           buffer: newBuffer,
-          cursor: { line: currentLine + 1, column: 0 },
+          cursor: { line: currentLine + 1, column: indent.length },
           mode: "insert",
           history: newHistory,
           dirty: true,
@@ -433,20 +443,24 @@ export function executeAction(
     }
     
     case "O": {
-      // Open line above
+      // Open line above with smart indentation
       const newHistory = pushHistory(state.history, state.buffer, state.cursor);
       const currentLine = state.cursor.line;
+      
+      // Use indentation from current line
+      const indent = getLineIndent(state.buffer, currentLine);
+      
       const newBuffer = insertText(
         state.buffer,
         { line: currentLine, column: 0 },
-        "\n"
+        indent + "\n"
       );
-      // Move the new content down, cursor stays on the now-empty line
+      // Cursor stays on the new line with the indent
       return {
         state: {
           ...state,
           buffer: newBuffer,
-          cursor: { line: currentLine, column: 0 },
+          cursor: { line: currentLine, column: indent.length },
           mode: "insert",
           history: newHistory,
           dirty: true,
@@ -1184,7 +1198,7 @@ export function executeVisualOperator(
     
     case ">": {
       // Indent
-      const newBuffer = indentLines(state.buffer, start.line, end.line, 2);
+      const newBuffer = indentLines(state.buffer, start.line, end.line, INDENT_SIZE);
       return {
         state: {
           ...baseState,
@@ -1199,7 +1213,7 @@ export function executeVisualOperator(
     
     case "<": {
       // Outdent
-      const newBuffer = outdentLines(state.buffer, start.line, end.line, 2);
+      const newBuffer = outdentLines(state.buffer, start.line, end.line, INDENT_SIZE);
       return {
         state: {
           ...baseState,

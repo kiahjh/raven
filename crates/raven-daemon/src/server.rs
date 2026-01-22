@@ -5,10 +5,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
-
 use crate::protocol::{ClientMessage, ServerMessage};
 use crate::session::SessionManager;
-
 use tokio::sync::mpsc;
 
 /// Per-client state tracking which sessions they're attached to

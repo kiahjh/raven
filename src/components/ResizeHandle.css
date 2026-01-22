@@ -1,7 +1,20 @@
+/*
+ * ResizeHandle
+ */
+
 .resize-handle {
   flex-shrink: 0;
   position: relative;
-  background: var(--bg-base);
+  background: transparent;
+  z-index: 10;
+}
+
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  background: transparent;
+  border-radius: 2px;
+  transition: background var(--transition-fast);
 }
 
 .resize-handle--horizontal {
@@ -9,7 +22,13 @@
   margin: 0 -2px;
   height: 100%;
   cursor: col-resize;
-  z-index: 10;
+}
+
+.resize-handle--horizontal::after {
+  width: 1px;
+  height: 100%;
+  left: 2px;
+  top: 0;
 }
 
 .resize-handle--vertical {
@@ -17,13 +36,19 @@
   height: 5px;
   margin: -2px 0;
   cursor: row-resize;
-  z-index: 10;
 }
 
-.resize-handle:hover {
-  background: var(--border-emphasis);
+.resize-handle--vertical::after {
+  height: 1px;
+  width: 100%;
+  top: 2px;
+  left: 0;
 }
 
-.resize-handle--dragging {
+.resize-handle:hover::after {
+  background: var(--border-strong);
+}
+
+.resize-handle--dragging::after {
   background: var(--accent);
 }

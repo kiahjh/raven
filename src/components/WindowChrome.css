@@ -9,3 +9,7 @@
   flex-direction: column;
   background: var(--bg-base);
 }
+
+.window-chrome--unfocused {
+  opacity: 0.95;
+}

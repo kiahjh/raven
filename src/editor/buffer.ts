@@ -177,3 +177,53 @@ export function comparePositions(a: Position, b: Position): number {
   }
   return a.column - b.column;
 }
+
+/**
+ * Get the leading whitespace (indentation) of a line.
+ */
+export function getLineIndent(buffer: TextBuffer, lineIndex: number): string {
+  const line = getLine(buffer, lineIndex);
+  const match = line.match(/^(\s*)/);
+  return match ? match[1] : "";
+}
+
+/**
+ * Compute smart indentation for a new line.
+ * - Preserves indentation from the reference line
+ * - Adds extra indent after opening brackets { ( [
+ * - Reduces indent for closing brackets } ) ]
+ */
+export function computeSmartIndent(
+  buffer: TextBuffer,
+  lineIndex: number,
+  column: number,
+  indentString: string = "    "
+): string {
+  const line = getLine(buffer, lineIndex);
+  const baseIndent = getLineIndent(buffer, lineIndex);
+  
+  // Get the text before the cursor on this line
+  const textBeforeCursor = line.slice(0, column);
+  
+  // Check if line ends with an opening bracket (before cursor)
+  const trimmed = textBeforeCursor.trimEnd();
+  const lastChar = trimmed[trimmed.length - 1];
+  
+  if (lastChar === "{" || lastChar === "(" || lastChar === "[") {
+    // Add extra indentation
+    return baseIndent + indentString;
+  }
+  
+  // Check if the text after cursor starts with a closing bracket
+  const textAfterCursor = line.slice(column).trimStart();
+  const firstCharAfter = textAfterCursor[0];
+  
+  if (firstCharAfter === "}" || firstCharAfter === ")" || firstCharAfter === "]") {
+    // Reduce indentation for closing bracket
+    if (baseIndent.length >= indentString.length) {
+      return baseIndent.slice(indentString.length);
+    }
+  }
+  
+  return baseIndent;
+}

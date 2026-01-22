@@ -1,0 +1,93 @@
+/**
+ * Icon styling for completion menu
+ * Each completion kind has a solid colored background with white icon
+ */
+
+/* Base icon container in completion menu */
+.editor-surface__completion-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.editor-surface__completion-icon svg {
+  /* Ensure SVG strokes are visible */
+  stroke-width: 2;
+}
+
+/* Function/Method/Constructor - purple */
+.editor-surface__completion-icon--function,
+.editor-surface__completion-icon--method,
+.editor-surface__completion-icon--constructor {
+  color: white;
+  background: #9d7cd8;
+}
+
+/* Variable/Field/Property - blue */
+.editor-surface__completion-icon--variable,
+.editor-surface__completion-icon--field,
+.editor-surface__completion-icon--property {
+  color: white;
+  background: #5c9fd7;
+}
+
+/* Class/Struct/Interface/TypeParameter - orange */
+.editor-surface__completion-icon--class,
+.editor-surface__completion-icon--struct,
+.editor-surface__completion-icon--interface,
+.editor-surface__completion-icon--type-parameter {
+  color: white;
+  background: #e0965c;
+}
+
+/* Module/Folder - yellow */
+.editor-surface__completion-icon--module,
+.editor-surface__completion-icon--folder {
+  color: white;
+  background: #c4a647;
+}
+
+/* Enum/EnumMember/Constant/Value - teal */
+.editor-surface__completion-icon--enum,
+.editor-surface__completion-icon--enum-member,
+.editor-surface__completion-icon--constant,
+.editor-surface__completion-icon--value,
+.editor-surface__completion-icon--unit {
+  color: white;
+  background: #4cb3ba;
+}
+
+/* Keyword/Operator - coral/red */
+.editor-surface__completion-icon--keyword,
+.editor-surface__completion-icon--operator {
+  color: white;
+  background: #d9726a;
+}
+
+/* Snippet/Text/Reference - gray */
+.editor-surface__completion-icon--snippet,
+.editor-surface__completion-icon--text,
+.editor-surface__completion-icon--reference {
+  color: white;
+  background: #6b7280;
+}
+
+/* Macro - pink */
+.editor-surface__completion-icon--macro {
+  color: white;
+  background: #d972b1;
+}
+
+/* File/Color/Event - green */
+.editor-surface__completion-icon--file,
+.editor-surface__completion-icon--color,
+.editor-surface__completion-icon--event {
+  color: white;
+  background: #5bb576;
+}

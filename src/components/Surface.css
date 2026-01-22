@@ -1,15 +1,19 @@
+/*
+ * Surface - Clean container
+ */
+
 .surface {
   width: 100%;
   height: 100%;
-  background: transparent;
-  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-subtle);
   transition: border-color var(--transition-fast);
 }
 
 .surface--focused {
-  border-color: var(--border-emphasis);
+  border-color: var(--border-default);
 }
 
 .surface__content {
@@ -24,21 +28,31 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-6);
 }
 
-.surface__type {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+.surface__icon {
+  width: 32px;
+  height: 32px;
   color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
 }
 
+.surface--focused .surface__icon {
+  opacity: 1;
+}
+
+.surface__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Keyboard hints */
 .surface__hints {
   display: flex;
   gap: var(--space-6);
-  opacity: 0.4;
+  opacity: 0;
   transition: opacity var(--transition-normal);
 }
 
@@ -52,17 +66,35 @@
   gap: var(--space-2);
 }
 
-.surface__hint kbd {
-  padding: 4px 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
+.surface__hint-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
 }
 
-.surface__hint span {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+.surface__hint-label {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* Surface types */
+.surface--empty {
+  background: var(--bg-base);
+}
+
+.surface--editor {
+  background: var(--bg-subtle);
+}
+
+.surface--terminal {
+  background: var(--bg-base);
 }

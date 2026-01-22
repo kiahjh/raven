@@ -11,7 +11,6 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
-
 use serde::{Deserialize, Serialize};
 
 // Counter for unique test IDs
