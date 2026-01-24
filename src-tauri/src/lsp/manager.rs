@@ -21,22 +21,16 @@ use tauri::{AppHandle, Emitter};
 /// Configuration for a language server.
 #[derive(Debug, Clone)]
 pub struct LanguageServerConfig {
-    pub language_id: String,
     pub command: String,
     pub args: Vec<String>,
-    pub file_patterns: Vec<String>,
-    pub root_markers: Vec<String>,
 }
 
 impl LanguageServerConfig {
     /// rust-analyzer configuration.
     pub fn rust_analyzer() -> Self {
         Self {
-            language_id: "rust".to_string(),
             command: "rust-analyzer".to_string(),
             args: vec![],
-            file_patterns: vec!["*.rs".to_string()],
-            root_markers: vec!["Cargo.toml".to_string()],
         }
     }
 }
@@ -44,8 +38,6 @@ impl LanguageServerConfig {
 /// Tracks an open document.
 #[derive(Debug, Clone)]
 struct OpenDocument {
-    uri: String,
-    language_id: String,
     version: i32,
 }
 
@@ -68,39 +60,6 @@ impl LspManager {
         Self {
             configs: vec![LanguageServerConfig::rust_analyzer()],
             servers: Mutex::new(HashMap::new()),
-        }
-    }
-
-    /// Find a config that matches the given file.
-    fn config_for_file(&self, file_path: &str) -> Option<&LanguageServerConfig> {
-        let path = Path::new(file_path);
-        let extension = path.extension()?.to_str()?;
-
-        for config in &self.configs {
-            for pattern in &config.file_patterns {
-                // Simple extension matching (*.rs -> rs)
-                if let Some(ext) = pattern.strip_prefix("*.") {
-                    if ext == extension {
-                        return Some(config);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    /// Find the project root for a file based on root markers.
-    fn find_root(&self, file_path: &str, config: &LanguageServerConfig) -> Option<String> {
-        let path = Path::new(file_path);
-        let mut dir = path.parent()?;
-
-        loop {
-            for marker in &config.root_markers {
-                if dir.join(marker).exists() {
-                    return Some(dir.to_string_lossy().to_string());
-                }
-            }
-            dir = dir.parent()?;
         }
     }
 
@@ -215,14 +174,7 @@ impl LspManager {
         // Track document
         {
             let mut docs = project.documents.lock();
-            docs.insert(
-                uri.clone(),
-                OpenDocument {
-                    uri,
-                    language_id,
-                    version: 1,
-                },
-            );
+            docs.insert(uri, OpenDocument { version: 1 });
         }
 
         Ok(())

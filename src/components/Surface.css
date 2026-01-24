@@ -31,6 +31,13 @@
   gap: var(--space-6);
 }
 
+.surface__title {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+
 .surface__icon {
   width: 32px;
   height: 32px;

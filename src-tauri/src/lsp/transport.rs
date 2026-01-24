@@ -2,7 +2,7 @@
 //!
 //! Handles JSON-RPC message framing over stdio (Content-Length headers).
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{ChildStdin, ChildStdout};
@@ -49,24 +49,10 @@ impl Notification {
     }
 }
 
-/// A JSON-RPC response.
-#[derive(Debug, Clone, Deserialize)]
-pub struct Response {
-    #[allow(dead_code)]
-    pub jsonrpc: String,
-    pub id: Option<u64>,
-    #[serde(default)]
-    pub result: Option<JsonValue>,
-    #[serde(default)]
-    pub error: Option<ResponseError>,
-}
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct ResponseError {
     pub code: i32,
     pub message: String,
-    #[serde(default)]
-    pub data: Option<JsonValue>,
 }
 
 impl std::fmt::Display for ResponseError {
@@ -101,20 +87,6 @@ impl IncomingMessage {
     /// Check if this is a notification (has method and no id).
     pub fn is_notification(&self) -> bool {
         self.method.is_some() && self.id.is_none()
-    }
-
-    /// Convert to Response if this is a response.
-    pub fn into_response(self) -> Option<Response> {
-        if self.is_response() {
-            Some(Response {
-                jsonrpc: self.jsonrpc,
-                id: self.id,
-                result: self.result,
-                error: self.error,
-            })
-        } else {
-            None
-        }
     }
 }
 
@@ -184,11 +156,6 @@ pub fn read_message<R: BufRead>(reader: &mut R) -> std::io::Result<JsonValue> {
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
-/// Parse a JSON value into a typed result.
-pub fn parse_result<T: DeserializeOwned>(value: JsonValue) -> Result<T, String> {
-    serde_json::from_value(value).map_err(|e| format!("Failed to parse response: {}", e))
-}
-
 /// A message reader that runs in a background thread and sends messages through a channel.
 pub struct MessageReader {
     receiver: mpsc::Receiver<IncomingMessage>,
@@ -232,19 +199,9 @@ impl MessageReader {
         }
     }
 
-    /// Try to receive a message without blocking.
-    pub fn try_recv(&self) -> Option<IncomingMessage> {
-        self.receiver.try_recv().ok()
-    }
-
     /// Receive a message, blocking until one is available.
     pub fn recv(&self) -> Option<IncomingMessage> {
         self.receiver.recv().ok()
-    }
-
-    /// Receive a message with a timeout.
-    pub fn recv_timeout(&self, timeout: std::time::Duration) -> Option<IncomingMessage> {
-        self.receiver.recv_timeout(timeout).ok()
     }
 }
 

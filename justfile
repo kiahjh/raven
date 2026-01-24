@@ -31,3 +31,10 @@ build:
     bun run build
     cargo build --manifest-path src-tauri/Cargo.toml
 
+# Build release .app bundle and install to /Applications
+install:
+    cargo tauri build
+    rm -rf /Applications/raven.app
+    cp -r src-tauri/target/release/bundle/macos/raven.app /Applications/
+    @echo "Installed raven.app to /Applications"
+

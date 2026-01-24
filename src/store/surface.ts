@@ -149,8 +149,10 @@ export function splitSurface(id: string, direction: "horizontal" | "vertical") {
 
 // Close a surface
 export function closeSurface(id: string) {
-  // Don't close if it's the only surface
+  // If it's the only surface, reset it to empty instead of closing
   if (state.root.kind === "leaf" && state.root.id === id) {
+    setState("root", { ...state.root, type: "empty" });
+    notifyChange();
     return;
   }
   

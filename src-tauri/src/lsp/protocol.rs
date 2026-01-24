@@ -3,6 +3,9 @@
 //! These types mirror the Language Server Protocol specification.
 //! We define only what we need, not the full spec.
 
+// Allow unused constants - these are LSP protocol values that may be used in the future
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 
 /// Position in a text document (0-indexed line and character).

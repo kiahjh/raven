@@ -26,11 +26,13 @@ Raven is a spatial, agent-native coding environment where the boundaries between
 
 ## Code Quality
 
-**Keep the codebase exceptionally clean.** This is non-negotiable.
+**Keep the codebase in perfect condition.** This is non-negotiable.
 
-- **Refactor aggressively** — If you see messy code, fix it. Extract functions, create modules, improve naming. Leave code better than you found it.
+- **Zero warnings** — The codebase must compile with zero warnings in both TypeScript and Rust. Fix warnings immediately when you see them, even if they're not related to your current task.
+- **Zero dead code** — Delete unused functions, unused imports, commented-out code, and obsolete modules. If code isn't being used, it shouldn't exist.
+- **Proactive cleanup** — If you encounter messy code, poorly named variables, or architectural issues while working on something else, fix them. Don't leave broken windows.
+- **Refactor aggressively** — Extract functions, create modules, improve naming. Leave code better than you found it.
 - **Small, focused functions** — Each function does one thing. If you're adding comments to explain sections of a function, split it up instead.
-- **No dead code** — Delete unused functions, commented-out code, and obsolete modules.
 - **Clear naming** — Names should be self-documenting. Avoid abbreviations unless universally understood.
 - **DRY, but not at the cost of clarity** — Extract duplication, but don't over-abstract. Prefer explicit over clever.
 
@@ -135,7 +137,8 @@ When in doubt, grep the codebase and follow precedent.
 
 1. All tests pass (`just test`)
 2. TypeScript compiles with no errors (`just build`)
-3. Code is formatted and clean
-4. No `any` types, no type assertions without validation
-5. New logic has test coverage
-6. Changes are minimal and focused
+3. Rust compiles with no warnings
+4. Code is formatted and clean
+5. No `any` types, no type assertions without validation
+6. New logic has test coverage
+7. Changes are minimal and focused

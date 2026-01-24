@@ -1,4 +1,5 @@
-import { Switch, Match } from "solid-js";
+import { Switch, Match, createSignal, onMount } from "solid-js";
+import { getVersion } from "@tauri-apps/api/app";
 import { SurfaceLeaf, surfaceState, setFocused } from "../store/surface";
 import { projectState } from "../store/project";
 import { TerminalSurface } from "./TerminalSurface";
@@ -9,8 +10,24 @@ interface Props {
   node: SurfaceLeaf;
 }
 
+// Cache the version so we only fetch it once
+let cachedVersion: string | null = null;
+
 export function Surface(props: Props) {
   const isFocused = () => surfaceState.focusedId === props.node.id;
+  const [version, setVersion] = createSignal(cachedVersion ?? "");
+  
+  onMount(async () => {
+    if (!cachedVersion) {
+      try {
+        cachedVersion = await getVersion();
+        setVersion(cachedVersion);
+      } catch {
+        // In dev mode, version might not be available
+        setVersion("dev");
+      }
+    }
+  });
 
   return (
     <div
@@ -25,6 +42,7 @@ export function Surface(props: Props) {
         <Match when={props.node.type === "empty"}>
           <div class="surface__content">
             <div class="surface__placeholder">
+              <div class="surface__title">Raven v{version()}</div>
               <div class="surface__hints">
                 <div class="surface__hint">
                   <span class="surface__hint-key">e</span>

@@ -7,6 +7,7 @@ use super::transport::*;
 use parking_lot::Mutex;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
@@ -115,6 +116,40 @@ impl LanguageServer {
     }
 }
 
+/// Find an executable by checking common paths.
+/// GUI apps on macOS don't inherit shell PATH, so we need to search manually.
+fn find_executable(name: &str) -> Option<PathBuf> {
+    // Get home directory
+    let home = std::env::var("HOME").ok().map(PathBuf::from);
+
+    // Common paths where tools are installed
+    let mut search_paths: Vec<PathBuf> = vec![
+        // Homebrew (Apple Silicon)
+        PathBuf::from("/opt/homebrew/bin"),
+        // Homebrew (Intel)
+        PathBuf::from("/usr/local/bin"),
+        // System paths
+        PathBuf::from("/usr/bin"),
+        PathBuf::from("/bin"),
+    ];
+
+    // Add home-relative paths
+    if let Some(ref h) = home {
+        search_paths.insert(0, h.join(".cargo/bin"));
+        search_paths.push(h.join(".rustup/toolchains/stable-aarch64-apple-darwin/bin"));
+        search_paths.push(h.join(".rustup/toolchains/stable-x86_64-apple-darwin/bin"));
+    }
+
+    for path in search_paths {
+        let full_path = path.join(name);
+        if full_path.exists() {
+            return Some(full_path);
+        }
+    }
+
+    None
+}
+
 /// Spawn a language server and perform the LSP initialization handshake.
 pub fn spawn_and_initialize(
     command: &str,
@@ -122,14 +157,22 @@ pub fn spawn_and_initialize(
     root_uri: &str,
     notification_sender: mpsc::Sender<ServerNotification>,
 ) -> Result<Arc<LanguageServer>, String> {
+    // Find the executable - try PATH first, then search common locations
+    let executable = find_executable(command).unwrap_or_else(|| PathBuf::from(command));
+
     // Spawn the process
-    let mut process = Command::new(command)
+    let mut process = Command::new(&executable)
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("Failed to spawn {}: {}", command, e))?;
+        .map_err(|e| {
+            format!(
+                "Failed to spawn {} (tried {:?}): {}",
+                command, executable, e
+            )
+        })?;
 
     let stdin = process
         .stdin
