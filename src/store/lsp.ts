@@ -15,6 +15,8 @@ import {
   lspHover,
   lspCompletion,
   lspReferences,
+  lspCodeActions,
+  lspResolveCodeAction,
 } from "../lsp/client";
 import type {
   Diagnostic,
@@ -22,6 +24,8 @@ import type {
   HoverResult,
   CompletionItem,
   PublishDiagnosticsParams,
+  CodeAction,
+  CodeActionForResolve,
 } from "../lsp/types";
 import { uriToPath } from "../lsp/types";
 
@@ -209,6 +213,37 @@ export function getDiagnostics(filePath: string): Diagnostic[] {
 }
 
 /**
+ * Get total diagnostic counts for a project (or all projects if no rootPath provided).
+ * Returns counts by severity: errors, warnings, info, hints.
+ */
+export function getProjectDiagnosticCounts(rootPath?: string): { errors: number; warnings: number; info: number; hints: number } {
+  let errors = 0;
+  let warnings = 0;
+  let info = 0;
+  let hints = 0;
+  
+  for (const [filePath, diagnostics] of Object.entries(store.diagnostics)) {
+    // Filter by project if rootPath is provided
+    if (rootPath && !filePath.startsWith(rootPath)) {
+      continue;
+    }
+    
+    if (!diagnostics) continue;
+    
+    for (const diag of diagnostics) {
+      switch (diag.severity) {
+        case 1: errors++; break;
+        case 2: warnings++; break;
+        case 3: info++; break;
+        case 4: hints++; break;
+      }
+    }
+  }
+  
+  return { errors, warnings, info, hints };
+}
+
+/**
  * Go to definition.
  */
 export async function gotoDefinition(
@@ -300,5 +335,58 @@ export async function references(
   } catch (e) {
     console.error("LSP: references failed:", e);
     return [];
+  }
+}
+
+/**
+ * Get code actions for a range.
+ */
+export async function codeActions(
+  rootPath: string,
+  filePath: string,
+  startLine: number,
+  startCharacter: number,
+  endLine: number,
+  endCharacter: number,
+  diagnostics: Diagnostic[]
+): Promise<CodeAction[]> {
+  const serverStatus = store.servers[rootPath];
+  if (serverStatus?.state !== "running") {
+    return [];
+  }
+
+  try {
+    return await lspCodeActions(
+      rootPath,
+      filePath,
+      startLine,
+      startCharacter,
+      endLine,
+      endCharacter,
+      diagnostics
+    );
+  } catch (e) {
+    console.error("LSP: codeActions failed:", e);
+    return [];
+  }
+}
+
+/**
+ * Resolve a code action to get full edit details.
+ */
+export async function resolveCodeAction(
+  rootPath: string,
+  codeAction: CodeActionForResolve
+): Promise<CodeAction | null> {
+  const serverStatus = store.servers[rootPath];
+  if (serverStatus?.state !== "running") {
+    return null;
+  }
+
+  try {
+    return await lspResolveCodeAction(rootPath, codeAction);
+  } catch (e) {
+    console.error("LSP: resolveCodeAction failed:", e);
+    return null;
   }
 }

@@ -1,18 +1,19 @@
 import { createEffect, createSignal, createMemo, For, Show, onMount, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { editorStore, getEditorState, updateEditorState, initializeEditor, setEditorState } from "../store/editor";
-import { getLine, getLineCount, getText, insertText as bufferInsertText, deleteCharBefore, Position, comparePositions, computeSmartIndent } from "../editor/buffer";
+import { getLine, getLineCount, getText, insertText as bufferInsertText, deleteCharBefore, Position, comparePositions, computeSmartIndent, getLineIndent } from "../editor/buffer";
 import { executeCommand, markExtendedDirty, markExtendedClean, clampExtendedCursor } from "../editor/commands";
 import { parseInput, createVimState, findAllMatches } from "../editor/vim";
 import { pushHistory } from "../editor/history";
 import { getHighlighter, type HighlightResult, type LanguageId } from "../editor/highlighting";
 
-import { startServerForFile, openDocument, changeDocument, closeDocument, getDiagnostics, gotoDefinition, hover, complete, references, lspStore, type ServerState } from "../store/lsp";
+import { startServerForFile, openDocument, changeDocument, closeDocument, getDiagnostics, gotoDefinition, hover, complete, references, codeActions, resolveCodeAction, lspStore, type ServerState } from "../store/lsp";
 import { setSurfaceType } from "../store/surface";
-import type { Diagnostic, CompletionItem } from "../lsp/types";
+import type { Diagnostic, CompletionItem, CodeAction, TextEdit, WorkspaceEdit } from "../lsp/types";
 import { uriToPath } from "../lsp/types";
 import { renderMarkdown } from "../utils/markdown";
-import { getCompletionIcon, IconMacro } from "./icons";
+import { getCompletionIcon, IconMacro, IconLightbulb, IconQuickfix, IconRefactor, IconExtract, IconSource } from "./icons";
 import "./EditorSurface.css";
 import "./icons/icons.css";
 
@@ -64,6 +65,18 @@ export function EditorSurface(props: Props) {
   const [referencesLocations, setReferencesLocations] = createSignal<Array<{ uri: string; line: number; col: number }>>([]);
   const [referencesIndex, setReferencesIndex] = createSignal(0);
   const [showReferences, setShowReferences] = createSignal(false);
+  
+  // Code actions menu state
+  const [codeActionItems, setCodeActionItems] = createSignal<CodeAction[]>([]);
+  const [codeActionIndex, setCodeActionIndex] = createSignal(0);
+  
+  // Code action indicator state (shows count on cursor rest, expands to menu on ga)
+  const [codeActionCount, setCodeActionCount] = createSignal<number>(0);
+  const [codeActionIndicatorPosition, setCodeActionIndicatorPosition] = createSignal<{ x: number; y: number } | null>(null);
+  
+  // Toast notification state
+  const [toastMessage, setToastMessage] = createSignal<string | null>(null);
+  let toastTimeout: ReturnType<typeof setTimeout> | null = null;
   
   // LSP root path for current file (may differ from project root)
   const [lspRootPath, setLspRootPath] = createSignal<string | null>(null);
@@ -332,6 +345,92 @@ export function EditorSurface(props: Props) {
     // If cursor has moved from the hover anchor, close the hover
     if (s.cursor.line !== anchor.line || s.cursor.column !== anchor.column) {
       closeHover();
+    }
+  });
+
+  // Check for available code actions when cursor rests (for lightbulb indicator)
+  let codeActionCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+  const CODE_ACTION_CHECK_DELAY = 500; // ms to wait before checking
+  
+  createEffect(() => {
+    const rootPath = lspRootPath();
+    const filePath = props.filePath;
+    const s = editorStore.editors[props.id];
+    
+    // Clear previous timeout and indicator
+    if (codeActionCheckTimeout) {
+      clearTimeout(codeActionCheckTimeout);
+      codeActionCheckTimeout = null;
+    }
+    setCodeActionCount(0);
+    setCodeActionIndicatorPosition(null);
+    
+    if (!rootPath || !filePath || !s) return;
+    if (!filePath.endsWith(".rs")) return;
+    if (s.mode !== "normal") return; // Only show in normal mode
+    
+    const { line, column } = s.cursor;
+    
+    // Get diagnostics at current position
+    const fileDiags = getDiagnostics(filePath);
+    const cursorDiagnostics = fileDiags.filter(d => 
+      line >= d.range.start.line && line <= d.range.end.line &&
+      (line > d.range.start.line || column >= d.range.start.character) &&
+      (line < d.range.end.line || column <= d.range.end.character)
+    );
+    
+    // Schedule check after delay
+    codeActionCheckTimeout = setTimeout(async () => {
+      try {
+        const actions = await codeActions(
+          rootPath,
+          filePath,
+          line,
+          column,
+          line,
+          column,
+          cursorDiagnostics
+        );
+        
+        const enabledActions = actions.filter(a => !a.disabledReason);
+        
+        if (enabledActions.length > 0) {
+          // Position the indicator centered below the cursor
+          const lineEl = lineRefs.get(line);
+          if (lineEl && containerRef) {
+            // Find the actual cursor element for precise positioning
+            const cursorEl = lineEl.querySelector(".editor-surface__cursor");
+            if (cursorEl) {
+              const cursorRect = cursorEl.getBoundingClientRect();
+              setCodeActionIndicatorPosition({ 
+                x: cursorRect.left + (cursorRect.width / 2),
+                y: cursorRect.bottom + 4
+              });
+            } else {
+              // Fallback: estimate position
+              const contentEl = lineEl.querySelector(".editor-surface__line-content");
+              const contentRect = contentEl?.getBoundingClientRect() ?? lineEl.getBoundingClientRect();
+              const charWidth = 8.4;
+              setCodeActionIndicatorPosition({ 
+                x: contentRect.left + (state().cursor.column * charWidth) + (charWidth / 2),
+                y: contentRect.bottom + 4
+              });
+            }
+          }
+          setCodeActionCount(enabledActions.length);
+        }
+      } catch (e) {
+        // Silently ignore errors for background checks
+      }
+    }, CODE_ACTION_CHECK_DELAY);
+  });
+  
+  onCleanup(() => {
+    if (codeActionCheckTimeout) {
+      clearTimeout(codeActionCheckTimeout);
+    }
+    if (toastTimeout) {
+      clearTimeout(toastTimeout);
     }
   });
 
@@ -795,6 +894,26 @@ export function EditorSurface(props: Props) {
     }
   };
 
+  // Sync register content to system clipboard
+  const syncRegisterToClipboard = async (text: string) => {
+    try {
+      await writeText(text);
+    } catch (e) {
+      console.warn("Failed to write to clipboard:", e);
+    }
+  };
+
+  // Sync system clipboard to register (for paste operations)
+  const syncClipboardToRegister = async (): Promise<string | null> => {
+    try {
+      const text = await readText();
+      return text;
+    } catch (e) {
+      console.warn("Failed to read from clipboard:", e);
+      return null;
+    }
+  };
+
   const handleFindReferences = async () => {
     const rootPath = lspRootPath();
     const filePath = props.filePath;
@@ -856,6 +975,251 @@ export function EditorSurface(props: Props) {
     setReferencesIndex(index);
   };
 
+  // Show a temporary toast message
+  const showToast = (message: string, duration: number = 2000) => {
+    if (toastTimeout) {
+      clearTimeout(toastTimeout);
+    }
+    setToastMessage(message);
+    toastTimeout = setTimeout(() => {
+      setToastMessage(null);
+    }, duration);
+  };
+
+  // Code actions functionality
+  const handleCodeActions = async () => {
+    const rootPath = lspRootPath();
+    const filePath = props.filePath;
+    
+    if (!rootPath || !filePath) {
+      showToast("No LSP server connected");
+      return;
+    }
+    
+    const state = getEditorState(props.id);
+    const { line, column } = state.cursor;
+    
+    // Get diagnostics at current position to include in request
+    const fileDiagnostics = getDiagnostics(filePath);
+    const cursorDiagnostics = fileDiagnostics.filter(d => 
+      line >= d.range.start.line && line <= d.range.end.line &&
+      (line > d.range.start.line || column >= d.range.start.character) &&
+      (line < d.range.end.line || column <= d.range.end.character)
+    );
+    
+    try {
+      // Request code actions for the cursor position
+      const actions = await codeActions(
+        rootPath,
+        filePath,
+        line,
+        column,
+        line,
+        column,
+        cursorDiagnostics
+      );
+      
+      // Filter out disabled actions
+      const enabledActions = actions.filter(a => !a.disabledReason);
+      
+      if (enabledActions.length === 0) {
+        showToast("No code actions available");
+        closeCodeActions();
+        return;
+      }
+      
+      // Sort: preferred actions first, then quickfixes, then others
+      enabledActions.sort((a, b) => {
+        if (a.isPreferred && !b.isPreferred) return -1;
+        if (!a.isPreferred && b.isPreferred) return 1;
+        const aIsQuickfix = a.kind?.startsWith("quickfix") ?? false;
+        const bIsQuickfix = b.kind?.startsWith("quickfix") ?? false;
+        if (aIsQuickfix && !bIsQuickfix) return -1;
+        if (!aIsQuickfix && bIsQuickfix) return 1;
+        return 0;
+      });
+      
+      // Update indicator position if not already set
+      if (!codeActionIndicatorPosition()) {
+        const lineEl = lineRefs.get(line);
+        if (lineEl && containerRef) {
+          const cursorEl = lineEl.querySelector(".editor-surface__cursor");
+          if (cursorEl) {
+            const cursorRect = cursorEl.getBoundingClientRect();
+            setCodeActionIndicatorPosition({ 
+              x: cursorRect.left + (cursorRect.width / 2),
+              y: cursorRect.bottom + 4
+            });
+          } else {
+            const contentEl = lineEl.querySelector(".editor-surface__line-content");
+            const contentRect = contentEl?.getBoundingClientRect() ?? lineEl.getBoundingClientRect();
+            const charWidth = 8.4;
+            setCodeActionIndicatorPosition({ 
+              x: contentRect.left + (column * charWidth) + (charWidth / 2),
+              y: contentRect.bottom + 4
+            });
+          }
+        }
+      }
+      
+      setCodeActionItems(enabledActions);
+      setCodeActionIndex(0);
+    } catch (e) {
+      console.error("LSP: code actions error:", e);
+      closeCodeActions();
+    }
+  };
+
+  const closeCodeActions = () => {
+    setCodeActionItems([]);
+    setCodeActionIndex(0);
+  };
+
+  // Apply a workspace edit to the buffer
+  const applyWorkspaceEdit = (edit: WorkspaceEdit) => {
+    const filePath = props.filePath;
+    if (!filePath) return;
+    
+    // Get edits for the current file
+    let editsToApply: TextEdit[] = [];
+    
+    // Check changes (simple format)
+    if (edit.changes) {
+      const fileUri = `file://${filePath}`;
+      const fileEdits = edit.changes[fileUri];
+      if (fileEdits) {
+        editsToApply = fileEdits;
+      }
+    }
+    
+    // Check documentChanges (more complex format)
+    if (edit.documentChanges) {
+      for (const change of edit.documentChanges) {
+        const changePath = uriToPath(change.uri);
+        if (changePath === filePath) {
+          editsToApply = editsToApply.concat(change.edits);
+        }
+      }
+    }
+    
+    if (editsToApply.length === 0) return;
+    
+    // Sort edits by position (reverse order so we can apply from end to start)
+    // This prevents position shifts from affecting later edits
+    editsToApply.sort((a, b) => {
+      if (a.range.start.line !== b.range.start.line) {
+        return b.range.start.line - a.range.start.line;
+      }
+      return b.range.start.character - a.range.start.character;
+    });
+    
+    // Apply all edits
+    updateEditorState(props.id, (state) => {
+      const newHistory = pushHistory(state.history, state.buffer, state.cursor);
+      let newLines = [...state.buffer.lines];
+      let newCursor = { ...state.cursor };
+      
+      for (const edit of editsToApply) {
+        const { range, newText } = edit;
+        const startLine = range.start.line;
+        const startChar = range.start.character;
+        const endLine = range.end.line;
+        const endChar = range.end.character;
+        
+        // Get the lines to modify
+        const beforeText = newLines[startLine]?.slice(0, startChar) ?? "";
+        const afterText = newLines[endLine]?.slice(endChar) ?? "";
+        
+        // Split new text into lines
+        const newTextLines = newText.split("\n");
+        
+        // Create the new line(s)
+        if (newTextLines.length === 1) {
+          // Single line replacement
+          const mergedLine = beforeText + newTextLines[0] + afterText;
+          newLines.splice(startLine, endLine - startLine + 1, mergedLine);
+        } else {
+          // Multi-line replacement
+          const firstLine = beforeText + newTextLines[0];
+          const lastLine = newTextLines[newTextLines.length - 1] + afterText;
+          const middleLines = newTextLines.slice(1, -1);
+          const replacement = [firstLine, ...middleLines, lastLine];
+          newLines.splice(startLine, endLine - startLine + 1, ...replacement);
+        }
+        
+        // Update cursor if it was in the edited region
+        if (newCursor.line >= startLine && newCursor.line <= endLine) {
+          // Move cursor to end of inserted text
+          const insertedLines = newText.split("\n");
+          if (insertedLines.length === 1) {
+            newCursor = {
+              line: startLine,
+              column: startChar + insertedLines[0].length,
+            };
+          } else {
+            newCursor = {
+              line: startLine + insertedLines.length - 1,
+              column: insertedLines[insertedLines.length - 1].length,
+            };
+          }
+        }
+      }
+      
+      const newBuffer = { ...state.buffer, lines: newLines };
+      return markExtendedDirty({ ...state, buffer: newBuffer, cursor: newCursor, history: newHistory });
+    });
+  };
+
+  const executeCodeAction = async (index: number) => {
+    const actions = codeActionItems();
+    if (index < 0 || index >= actions.length) {
+      closeCodeActions();
+      return;
+    }
+    
+    let action = actions[index];
+    const rootPath = lspRootPath();
+    
+    // If the action needs resolution, resolve it first
+    if (action.needsResolve && rootPath) {
+      const resolved = await resolveCodeAction(rootPath, {
+        title: action.title,
+        kind: action.kind,
+        isPreferred: action.isPreferred,
+        data: action.data,
+      });
+      if (resolved) {
+        action = resolved;
+      }
+    }
+    
+    // Apply the workspace edit
+    if (action.edit) {
+      applyWorkspaceEdit(action.edit);
+    }
+    
+    closeCodeActions();
+  };
+
+  // Get display info for code action kind
+  const getCodeActionKindInfo = (kind?: string): { label: string; icon: typeof IconQuickfix } => {
+    if (!kind) return { label: "action", icon: IconLightbulb };
+    if (kind.startsWith("quickfix")) return { label: "fix", icon: IconQuickfix };
+    if (kind.startsWith("refactor.extract")) return { label: "extract", icon: IconExtract };
+    if (kind.startsWith("refactor.inline")) return { label: "inline", icon: IconRefactor };
+    if (kind.startsWith("refactor.rewrite")) return { label: "rewrite", icon: IconRefactor };
+    if (kind.startsWith("refactor")) return { label: "refactor", icon: IconRefactor };
+    if (kind.startsWith("source.organizeImports")) return { label: "imports", icon: IconSource };
+    if (kind.startsWith("source")) return { label: "source", icon: IconSource };
+    return { label: "action", icon: IconLightbulb };
+  };
+
+  // Render code action title with inline code formatting
+  const renderCodeActionTitle = (title: string): string => {
+    // Convert backtick-wrapped text to styled spans
+    return title.replace(/`([^`]+)`/g, '<code class="editor-surface__code-action-code">$1</code>');
+  };
+
   const handleWheel = (_e: WheelEvent) => {
     // Let the browser handle scrolling naturally
     // Don't prevent default - this allows smooth scrolling of the lines container
@@ -870,6 +1234,37 @@ export function EditorSurface(props: Props) {
       closeHover();
     }
     
+    // Handle code actions menu navigation if open
+    if (codeActionItems().length > 0) {
+      if (e.key === "Escape") {
+        closeCodeActions();
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "j") {
+        setCodeActionIndex((i) => Math.min(i + 1, codeActionItems().length - 1));
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "ArrowUp" || e.key === "k") {
+        setCodeActionIndex((i) => Math.max(i - 1, 0));
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Enter") {
+        executeCodeAction(codeActionIndex());
+        e.preventDefault();
+        return;
+      }
+      // Number keys 1-9 to select directly
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= 9 && num <= codeActionItems().length) {
+        executeCodeAction(num - 1);
+        e.preventDefault();
+        return;
+      }
+    }
+    
     // Don't handle keys when search input is active (let it handle its own input)
     if (searchMode()) {
       return;
@@ -881,6 +1276,63 @@ export function EditorSurface(props: Props) {
     if (e.metaKey && e.key === "s") {
       e.preventDefault();
       saveFile();
+      return;
+    }
+
+    // Handle Cmd+C for copy (yank current line or visual selection)
+    if (e.metaKey && e.key === "c") {
+      e.preventDefault();
+      const s = getEditorState(props.id);
+      let textToCopy: string;
+      
+      if (s.visualAnchor && s.visualMode) {
+        // Copy visual selection
+        const start = comparePositions(s.visualAnchor, s.cursor) < 0 ? s.visualAnchor : s.cursor;
+        const end = comparePositions(s.visualAnchor, s.cursor) < 0 ? s.cursor : s.visualAnchor;
+        
+        if (s.visualMode === "line") {
+          // Line mode: copy full lines
+          const lines = s.buffer.lines.slice(start.line, end.line + 1);
+          textToCopy = lines.join("\n") + "\n";
+        } else {
+          // Char mode
+          if (start.line === end.line) {
+            textToCopy = s.buffer.lines[start.line].slice(start.column, end.column + 1);
+          } else {
+            const firstLine = s.buffer.lines[start.line].slice(start.column);
+            const middleLines = s.buffer.lines.slice(start.line + 1, end.line);
+            const lastLine = s.buffer.lines[end.line].slice(0, end.column + 1);
+            textToCopy = [firstLine, ...middleLines, lastLine].join("\n");
+          }
+        }
+      } else {
+        // No selection: copy current line
+        textToCopy = getLine(s.buffer, s.cursor.line) + "\n";
+      }
+      
+      // Update register and clipboard
+      updateEditorState(props.id, (st) => ({
+        ...st,
+        vim: {
+          ...st.vim,
+          registers: {
+            ...st.vim.registers,
+            '"': { text: textToCopy, linewise: textToCopy.endsWith("\n") },
+          },
+        },
+        // Clear visual mode after copy
+        visualAnchor: null,
+        visualMode: null,
+      }));
+      syncRegisterToClipboard(textToCopy);
+      return;
+    }
+
+    // Handle Cmd+V for paste
+    if (e.metaKey && e.key === "v") {
+      e.preventDefault();
+      // Use vim paste command which will sync from clipboard
+      processVimInput("p");
       return;
     }
 
@@ -1314,8 +1766,28 @@ export function EditorSurface(props: Props) {
     }
   });
 
-  const processVimInput = (input: string) => {
-    const state = getEditorState(props.id);
+  const processVimInput = async (input: string) => {
+    let state = getEditorState(props.id);
+    
+    // Handle paste commands specially - sync from system clipboard first
+    if ((input === "p" || input === "P") && state.mode === "normal") {
+      const clipboardText = await syncClipboardToRegister();
+      if (clipboardText !== null) {
+        // Update the register with clipboard content before executing paste
+        updateEditorState(props.id, (s) => ({
+          ...s,
+          vim: {
+            ...s.vim,
+            registers: {
+              ...s.vim.registers,
+              '"': { text: clipboardText, linewise: clipboardText.endsWith("\n") },
+            },
+          },
+        }));
+        // Re-read state after update so paste uses the new register
+        state = getEditorState(props.id);
+      }
+    }
     
     // Handle special LSP commands before vim parsing
     if (input === "gd" && state.mode === "normal" && props.filePath?.endsWith(".rs")) {
@@ -1334,6 +1806,13 @@ export function EditorSurface(props: Props) {
     // gr - find references
     if (input === "gr" && state.mode === "normal" && props.filePath?.endsWith(".rs")) {
       handleFindReferences();
+      setPendingInput("");
+      return;
+    }
+    
+    // ga - code actions (like VS Code's Ctrl+.)
+    if (input === "ga" && state.mode === "normal" && props.filePath?.endsWith(".rs")) {
+      handleCodeActions();
       setPendingInput("");
       return;
     }
@@ -1367,8 +1846,7 @@ export function EditorSurface(props: Props) {
         }
         
         const execResult = executeCommand(state, result.command);
-        // Merge vim states: execution takes priority, but parser wins for find char info
-        setEditorState(props.id, {
+        const newState = {
           ...execResult.state,
           vim: {
             ...execResult.state.vim,
@@ -1377,7 +1855,17 @@ export function EditorSurface(props: Props) {
             lastFindForward: result.state.lastFindForward,
             lastFindInclusive: result.state.lastFindInclusive,
           },
-        });
+        };
+        
+        // Merge vim states: execution takes priority, but parser wins for find char info
+        setEditorState(props.id, newState);
+        
+        // Sync register with system clipboard if it changed
+        const oldRegister = state.vim.registers['"'];
+        const newRegister = newState.vim.registers['"'];
+        if (newRegister && newRegister !== oldRegister) {
+          syncRegisterToClipboard(newRegister.text);
+        }
       } else {
         // Update vim state even if no command (e.g., for find char memory)
         updateEditorState(props.id, (s) => ({ ...s, vim: result.state }));
@@ -1588,10 +2076,29 @@ export function EditorSurface(props: Props) {
       
       updateEditorState(props.id, (state) => {
         const newHistory = pushHistory(state.history, state.buffer, state.cursor);
+        const line = getLine(state.buffer, state.cursor.line);
+        const charBefore = line[state.cursor.column - 1];
+        const charAfter = line[state.cursor.column];
         
-        // Compute smart indentation based on current line and cursor position
+        // Check if cursor is between matching brackets: {|}, (|), [|]
+        const isBetweenBrackets = 
+          (charBefore === "{" && charAfter === "}") ||
+          (charBefore === "(" && charAfter === ")") ||
+          (charBefore === "[" && charAfter === "]");
+        
+        if (isBetweenBrackets) {
+          // Split brackets with cursor on indented middle line
+          const baseIndent = getLineIndent(state.buffer, state.cursor.line);
+          const innerIndent = baseIndent + "    ";
+          // Insert: newline + inner indent + newline + base indent
+          const insertText = "\n" + innerIndent + "\n" + baseIndent;
+          const newBuffer = bufferInsertText(state.buffer, state.cursor, insertText);
+          const newCursor = { line: state.cursor.line + 1, column: innerIndent.length };
+          return clampExtendedCursor(markExtendedDirty({ ...state, buffer: newBuffer, cursor: newCursor, history: newHistory }));
+        }
+        
+        // Normal case: compute smart indentation
         const indent = computeSmartIndent(state.buffer, state.cursor.line, state.cursor.column);
-        
         const newBuffer = bufferInsertText(state.buffer, state.cursor, "\n" + indent);
         const newCursor = { line: state.cursor.line + 1, column: indent.length };
         return clampExtendedCursor(markExtendedDirty({ ...state, buffer: newBuffer, cursor: newCursor, history: newHistory }));
@@ -2294,10 +2801,64 @@ export function EditorSurface(props: Props) {
               </div>
             </div>
           </Show>
+          <Show when={(codeActionCount() > 0 || codeActionItems().length > 0) && codeActionIndicatorPosition() && !hoverContent() && props.focused}>
+            <div
+              class="editor-surface__code-actions"
+              classList={{ "editor-surface__code-actions--expanded": codeActionItems().length > 0 }}
+              style={{
+                left: `${codeActionIndicatorPosition()!.x}px`,
+                top: `${codeActionIndicatorPosition()!.y}px`,
+              }}
+              onClick={() => codeActionItems().length === 0 && handleCodeActions()}
+              title={codeActionItems().length === 0 ? `${codeActionCount()} action${codeActionCount() > 1 ? "s" : ""} available (ga)` : undefined}
+            >
+              <div class="editor-surface__code-actions-header">
+                <IconLightbulb size={12} class="editor-surface__code-actions-icon" />
+                <span class="editor-surface__code-actions-count">{codeActionCount()}</span>
+              </div>
+              <div class="editor-surface__code-actions-list">
+                <For each={codeActionItems().slice(0, 10)}>
+                  {(action, index) => {
+                    const kindInfo = getCodeActionKindInfo(action.kind);
+                    const KindIcon = kindInfo.icon;
+                    return (
+                      <div
+                        class="editor-surface__code-action-item"
+                        classList={{ 
+                          "editor-surface__code-action-item--selected": index() === codeActionIndex(),
+                          "editor-surface__code-action-item--preferred": action.isPreferred,
+                        }}
+                        onClick={(e) => { e.stopPropagation(); executeCodeAction(index()); }}
+                      >
+                        <span class={`editor-surface__code-action-kind editor-surface__code-action-kind--${kindInfo.label}`}>
+                          <KindIcon size={12} />
+                        </span>
+                        <span class="editor-surface__code-action-title" innerHTML={renderCodeActionTitle(action.title)} />
+                        <span class="editor-surface__code-action-key">{index() + 1}</span>
+                      </div>
+                    );
+                  }}
+                </For>
+                <Show when={codeActionItems().length > 10}>
+                  <div class="editor-surface__code-actions-more">
+                    +{codeActionItems().length - 10} more
+                  </div>
+                </Show>
+              </div>
+            </div>
+          </Show>
+          <Show when={toastMessage()}>
+            <div class="editor-surface__toast">
+              {toastMessage()}
+            </div>
+          </Show>
           <div class="editor-surface__status">
             <span class="editor-surface__filename">
               {fileName()}
               {state().dirty && <span class="editor-surface__dirty">*</span>}
+            </span>
+            <span class="editor-surface__position">
+              {state().cursor.line + 1}:{state().cursor.column + 1}
             </span>
             <Show when={diagnosticCounts().errors > 0 || diagnosticCounts().warnings > 0 || diagnosticCounts().info > 0 || diagnosticCounts().hints > 0}>
               <span class="editor-surface__diagnostics">
@@ -2320,11 +2881,6 @@ export function EditorSurface(props: Props) {
                 {lspStatus().label}
               </span>
             </Show>
-            <Show when={state().visualMode}>
-              <span class="editor-surface__visual-mode">
-                {state().visualMode === "line" ? "VISUAL LINE" : "VISUAL"}
-              </span>
-            </Show>
             <Show when={state().vim.searchPattern && !searchMode()}>
               <span class="editor-surface__search-info">
                 /{state().vim.searchPattern}
@@ -2337,10 +2893,7 @@ export function EditorSurface(props: Props) {
               <span class="editor-surface__pending">{pendingInput()}</span>
             </Show>
             <span class="editor-surface__mode">
-              {state().visualMode ? (state().visualMode === "line" ? "V-LINE" : "VISUAL") : state().mode.toUpperCase()}
-            </span>
-            <span class="editor-surface__position">
-              {state().cursor.line + 1}:{state().cursor.column + 1}
+              {state().visualMode ? (state().visualMode === "line" ? "VISUAL LINE" : "VISUAL") : state().mode.toUpperCase()}
             </span>
           </div>
         </div>

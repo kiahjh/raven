@@ -17,7 +17,9 @@ function stateWithContent(content: string, line = 0, column = 0): ExtendedEditor
 }
 
 function executeVimCommand(state: ExtendedEditorState, input: string): ExtendedEditorState {
-  const parseResult = parseInput(input, state.vim, state.mode);
+  const parseResult = parseInput(input, state.vim, state.mode, {
+    inVisualMode: state.visualMode !== null,
+  });
   if (!parseResult.complete || !parseResult.command) {
     throw new Error(`Failed to parse command: ${input}`);
   }
@@ -276,6 +278,61 @@ describe("command execution", () => {
       const state = stateWithContent("hello\nworld", 0, 0);
       const result = executeVimCommand(state, "<<");
       expect(getText(result.buffer)).toBe("hello\nworld");
+    });
+  });
+
+  describe("comment toggling", () => {
+    it("gcc comments current line", () => {
+      const state = stateWithContent("hello\nworld", 0, 0);
+      const result = executeVimCommand(state, "gcc");
+      expect(getText(result.buffer)).toBe("// hello\nworld");
+    });
+
+    it("gcc uncomments current line", () => {
+      const state = stateWithContent("// hello\nworld", 0, 0);
+      const result = executeVimCommand(state, "gcc");
+      expect(getText(result.buffer)).toBe("hello\nworld");
+    });
+
+    it("2gcc comments two lines", () => {
+      const state = stateWithContent("hello\nworld\nfoo", 0, 0);
+      const result = executeVimCommand(state, "2gcc");
+      expect(getText(result.buffer)).toBe("// hello\n// world\nfoo");
+    });
+
+    it("gcc preserves indentation when commenting", () => {
+      const state = stateWithContent("    hello\nworld", 0, 4);
+      const result = executeVimCommand(state, "gcc");
+      expect(getText(result.buffer)).toBe("    // hello\nworld");
+    });
+
+    it("gcc preserves indentation when uncommenting", () => {
+      const state = stateWithContent("    // hello\nworld", 0, 4);
+      const result = executeVimCommand(state, "gcc");
+      expect(getText(result.buffer)).toBe("    hello\nworld");
+    });
+
+    it("gcj comments current and next line", () => {
+      const state = stateWithContent("hello\nworld\nfoo", 0, 0);
+      const result = executeVimCommand(state, "gcj");
+      expect(getText(result.buffer)).toBe("// hello\n// world\nfoo");
+    });
+
+    it("gcc toggles based on whether all lines are commented", () => {
+      // If some lines are commented and some aren't, comment all
+      const state = stateWithContent("hello\n// world", 0, 0);
+      const result = executeVimCommand(state, "2gcc");
+      expect(getText(result.buffer)).toBe("// hello\n// // world");
+    });
+
+    it("gc in visual line mode comments selected lines", () => {
+      // Set up visual line mode selection
+      let state = stateWithContent("hello\nworld\nfoo", 0, 0);
+      state = { ...state, visualAnchor: { line: 0, column: 0 }, visualMode: "line" };
+      state = { ...state, cursor: { line: 1, column: 0 } }; // Select lines 0-1
+      const result = executeVimCommand(state, "gc");
+      expect(getText(result.buffer)).toBe("// hello\n// world\nfoo");
+      expect(result.visualMode).toBeNull(); // Should exit visual mode
     });
   });
 

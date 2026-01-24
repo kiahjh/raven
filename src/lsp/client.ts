@@ -3,7 +3,14 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { Location, HoverResult, CompletionItem } from "./types";
+import type {
+  Location,
+  HoverResult,
+  CompletionItem,
+  CodeAction,
+  CodeActionForResolve,
+  Diagnostic,
+} from "./types";
 
 /**
  * Find the LSP root directory for a file (e.g., directory containing Cargo.toml).
@@ -111,5 +118,41 @@ export async function lspReferences(
     line,
     character,
     includeDeclaration,
+  });
+}
+
+/**
+ * Get code actions for a range.
+ */
+export async function lspCodeActions(
+  rootPath: string,
+  filePath: string,
+  startLine: number,
+  startCharacter: number,
+  endLine: number,
+  endCharacter: number,
+  diagnostics: Diagnostic[]
+): Promise<CodeAction[]> {
+  return invoke("lsp_code_actions", {
+    rootPath,
+    filePath,
+    startLine,
+    startCharacter,
+    endLine,
+    endCharacter,
+    diagnostics,
+  });
+}
+
+/**
+ * Resolve a code action to get full edit details.
+ */
+export async function lspResolveCodeAction(
+  rootPath: string,
+  codeAction: CodeActionForResolve
+): Promise<CodeAction> {
+  return invoke("lsp_resolve_code_action", {
+    rootPath,
+    codeAction,
   });
 }

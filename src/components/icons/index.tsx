@@ -333,6 +333,57 @@ export const IconSplitHorizontal = createIcon(() => (
 ));
 
 // ============================================================================
+// Code Action Icons
+// ============================================================================
+
+/** Lightbulb icon - for code actions indicator */
+export const IconLightbulb = createIcon(() => (
+  <>
+    <path d="M8 2C5.5 2 3.5 4 3.5 6.5C3.5 8 4.5 9.5 5.5 10.5V12C5.5 12.5 6 13 6.5 13H9.5C10 13 10.5 12.5 10.5 12V10.5C11.5 9.5 12.5 8 12.5 6.5C12.5 4 10.5 2 8 2Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <path d="M6 14H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M8 6V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M6.5 7.5L8 6L9.5 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </>
+));
+
+/** Quickfix icon - wrench */
+export const IconQuickfix = createIcon(() => (
+  <>
+    <path d="M4 12L12 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M10.5 2.5C11.5 2.5 12.5 3 13 3.5C13.5 4 14 5 13.5 6L11 4.5L9.5 6L11 8.5C10 9 9 8.5 8.5 8C8 7.5 7.5 6.5 7.5 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M5.5 13.5C4.5 13.5 3.5 13 3 12.5C2.5 12 2 11 2.5 10L5 11.5L6.5 10L5 7.5C6 7 7 7.5 7.5 8C8 8.5 8.5 9.5 8.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </>
+));
+
+/** Refactor icon - curved arrows */
+export const IconRefactor = createIcon(() => (
+  <>
+    <path d="M3 8C3 5 5.5 3 8 3C10 3 11.5 4 12.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M13 8C13 11 10.5 13 8 13C6 13 4.5 12 3.5 10.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M11 3L13 5.5L10.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M5 13L3 10.5L5.5 9.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </>
+));
+
+/** Extract icon - box with arrow out */
+export const IconExtract = createIcon(() => (
+  <>
+    <rect x="2" y="6" width="8" height="8" rx="1" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 2V7H7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12 2L8 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </>
+));
+
+/** Source/organize icon - stacked lines */
+export const IconSource = createIcon(() => (
+  <>
+    <path d="M2 4H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M4 8H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M6 12H10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </>
+));
+
+// ============================================================================
 // Icon Map for LSP Completion Kinds
 // ============================================================================
 

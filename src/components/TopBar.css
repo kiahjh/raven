@@ -129,3 +129,26 @@
   background: var(--bg-hover);
   color: var(--text-secondary);
 }
+
+/* Diagnostics - matches editor status bar styling */
+.topbar__diagnostics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  padding-right: var(--space-2);
+  -webkit-app-region: no-drag;
+}
+
+.topbar__diagnostic {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.topbar__diagnostic--error {
+  color: var(--red);
+}
+
+.topbar__diagnostic--warning {
+  color: var(--yellow);
+}

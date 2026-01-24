@@ -10,6 +10,20 @@ Raven is a spatial, agent-native coding environment where the boundaries between
 
 ---
 
+## Design First
+
+**Raven is a design-first editor.** Everything must be absolutely beautiful, cohesive, and delightful to use. This is non-negotiable.
+
+- **Visual consistency is paramount** — Colors, icons, spacing, and typography must be consistent everywhere. Never introduce one-off styles.
+- **Use the centralized systems** — Icons come from `src/components/icons/`. Colors come from CSS variables in `src/styles/`. Don't inline SVGs or hardcode colors.
+- **Match existing patterns** — Before adding any UI element, find how similar elements are styled elsewhere. Copy that approach exactly.
+- **No layout jank** — Elements that change (counters, status indicators) must have fixed widths to prevent layout shifts. Use `min-width`, `tabular-nums`, and flex layouts appropriately.
+- **Attention to detail** — Padding, margins, border-radius, font weights, opacity levels — these all matter. Get them right.
+- **Less is more** — Don't add visual noise. Every pixel should earn its place.
+- **Test visually** — Actually look at what you build. Does it look good? Does it feel right? Would you be proud of it?
+
+---
+
 ## Code Quality
 
 **Keep the codebase exceptionally clean.** This is non-negotiable.

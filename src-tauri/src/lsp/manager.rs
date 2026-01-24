@@ -1,6 +1,13 @@
 //! LSP Manager - orchestrates language servers for projects.
 
-use super::protocol::*;
+use super::protocol::{
+    CodeAction, CodeActionContext, CodeActionParams, CodeActionResponse, CodeActionTriggerKind,
+    CompletionItem, CompletionResponse, DefinitionResponse, Diagnostic,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams, Hover,
+    HoverContents, Location, MarkedString, Position, Range, ReferenceContext, ReferenceParams,
+    TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem,
+    TextDocumentPositionParams, VersionedTextDocumentIdentifier,
+};
 use super::server::{spawn_and_initialize, LanguageServer, ServerNotification};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -397,6 +404,68 @@ impl LspManager {
         Ok(response.unwrap_or_default())
     }
 
+    /// Get code actions for a range.
+    pub fn code_actions(
+        &self,
+        root_path: &str,
+        file_path: &str,
+        start_line: u32,
+        start_character: u32,
+        end_line: u32,
+        end_character: u32,
+        diagnostics: Vec<Diagnostic>,
+    ) -> Result<Vec<CodeAction>, String> {
+        let project = self
+            .get_project(root_path)
+            .ok_or_else(|| "Server not running".to_string())?;
+
+        let params = CodeActionParams {
+            text_document: TextDocumentIdentifier {
+                uri: format!("file://{}", file_path),
+            },
+            range: Range {
+                start: Position {
+                    line: start_line,
+                    character: start_character,
+                },
+                end: Position {
+                    line: end_line,
+                    character: end_character,
+                },
+            },
+            context: CodeActionContext {
+                diagnostics,
+                only: None,
+                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
+            },
+        };
+
+        let response: Option<CodeActionResponse> = project.server.request(
+            "textDocument/codeAction",
+            Some(serde_json::to_value(&params).unwrap()),
+        )?;
+
+        Ok(response.map(|r| r.into_actions()).unwrap_or_default())
+    }
+
+    /// Resolve a code action (get full edit details).
+    pub fn resolve_code_action(
+        &self,
+        root_path: &str,
+        code_action: CodeAction,
+    ) -> Result<CodeAction, String> {
+        let project = self
+            .get_project(root_path)
+            .ok_or_else(|| "Server not running".to_string())?;
+
+        let resolved: CodeAction = project.server.request(
+            "codeAction/resolve",
+            Some(serde_json::to_value(&code_action).unwrap()),
+        )?;
+
+        Ok(resolved)
+    }
+
     /// Detect language ID from file extension.
     fn detect_language(&self, file_path: &str) -> String {
         let path = Path::new(file_path);
@@ -513,6 +582,151 @@ impl From<CompletionItem> for SerializedCompletionItem {
             detail: item.detail,
             insert_text: item.insert_text,
             filter_text: item.filter_text,
+        }
+    }
+}
+
+/// Serialized text edit for frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializedTextEdit {
+    pub range: SerializedRange,
+    pub new_text: String,
+}
+
+impl From<super::protocol::TextEdit> for SerializedTextEdit {
+    fn from(edit: super::protocol::TextEdit) -> Self {
+        Self {
+            range: SerializedRange {
+                start: SerializedPosition {
+                    line: edit.range.start.line,
+                    character: edit.range.start.character,
+                },
+                end: SerializedPosition {
+                    line: edit.range.end.line,
+                    character: edit.range.end.character,
+                },
+            },
+            new_text: edit.new_text,
+        }
+    }
+}
+
+/// Serialized workspace edit for frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializedWorkspaceEdit {
+    /// Map of file URI to list of text edits.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changes: Option<std::collections::HashMap<String, Vec<SerializedTextEdit>>>,
+    /// Document changes (for more complex edits).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_changes: Option<Vec<SerializedDocumentChange>>,
+}
+
+/// Serialized document change for frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializedDocumentChange {
+    /// The document to edit.
+    pub uri: String,
+    /// The edits to apply.
+    pub edits: Vec<SerializedTextEdit>,
+}
+
+impl From<super::protocol::WorkspaceEdit> for SerializedWorkspaceEdit {
+    fn from(edit: super::protocol::WorkspaceEdit) -> Self {
+        let changes = edit.changes.map(|c| {
+            c.into_iter()
+                .map(|(uri, edits)| {
+                    (
+                        uri,
+                        edits.into_iter().map(SerializedTextEdit::from).collect(),
+                    )
+                })
+                .collect()
+        });
+
+        let document_changes = edit.document_changes.map(|dc| {
+            dc.into_iter()
+                .filter_map(|change| {
+                    match change {
+                        super::protocol::DocumentChange::Edit(edit) => {
+                            Some(SerializedDocumentChange {
+                                uri: edit.text_document.uri,
+                                edits: edit
+                                    .edits
+                                    .into_iter()
+                                    .map(|e| match e {
+                                        super::protocol::TextEditOrAnnotated::TextEdit(te) => {
+                                            SerializedTextEdit::from(te)
+                                        }
+                                        super::protocol::TextEditOrAnnotated::Annotated(ate) => {
+                                            SerializedTextEdit {
+                                                range: SerializedRange {
+                                                    start: SerializedPosition {
+                                                        line: ate.range.start.line,
+                                                        character: ate.range.start.character,
+                                                    },
+                                                    end: SerializedPosition {
+                                                        line: ate.range.end.line,
+                                                        character: ate.range.end.character,
+                                                    },
+                                                },
+                                                new_text: ate.new_text,
+                                            }
+                                        }
+                                    })
+                                    .collect(),
+                            })
+                        }
+                        // For now, skip create/rename/delete operations
+                        _ => None,
+                    }
+                })
+                .collect()
+        });
+
+        Self {
+            changes,
+            document_changes,
+        }
+    }
+}
+
+/// Serialized code action for frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SerializedCodeAction {
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_preferred: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disabled_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edit: Option<SerializedWorkspaceEdit>,
+    /// Original code action JSON for resolve requests.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+    /// Whether this action needs to be resolved before execution.
+    pub needs_resolve: bool,
+}
+
+impl From<CodeAction> for SerializedCodeAction {
+    fn from(action: CodeAction) -> Self {
+        // Check if we need to resolve (has data but no edit)
+        let needs_resolve = action.edit.is_none() && action.data.is_some();
+
+        Self {
+            title: action.title,
+            kind: action.kind,
+            is_preferred: action.is_preferred,
+            disabled_reason: action.disabled.map(|d| d.reason),
+            edit: action.edit.map(SerializedWorkspaceEdit::from),
+            data: action.data,
+            needs_resolve,
         }
     }
 }

@@ -14,7 +14,7 @@ import type { EditorMode } from "./editor";
 
 export type VimMode = "normal" | "insert" | "visual" | "visual-line" | "operator-pending" | "replace";
 
-export type Operator = "d" | "c" | "y" | ">" | "<" | "g~" | "gu" | "gU";
+export type Operator = "d" | "c" | "y" | ">" | "<" | "g~" | "gu" | "gU" | "gc";
 
 export interface VimState {
   /** Current input buffer for multi-key sequences */
@@ -979,6 +979,93 @@ export function parseInput(input: string, state: VimState, _mode: EditorMode, op
   
   const remaining = input.slice(idx);
   const firstChar = remaining[0];
+  
+  // Check for gc (comment) operator
+  if (firstChar === "g" && !state.pendingOperator) {
+    if (remaining.length === 1) {
+      // Wait for more input (could be gc, gg, etc.)
+      return { complete: false, state: { ...newState, count } };
+    }
+    
+    if (remaining[1] === "c") {
+      // gc operator - comment toggle
+      // In visual mode, apply directly
+      if (options.inVisualMode && remaining.length === 2) {
+        return {
+          complete: true,
+          command: {
+            type: "action",
+            name: "gc",
+            count: count ?? 1,
+          },
+          state: createVimState(),
+        };
+      }
+      
+      if (remaining.length === 2) {
+        // Wait for motion or gcc
+        return {
+          complete: false,
+          state: { ...newState, count, pendingOperator: "gc" as Operator },
+        };
+      }
+      
+      const thirdChar = remaining[2];
+      
+      // Check for gcc (comment current line)
+      if (thirdChar === "c") {
+        return {
+          complete: true,
+          command: {
+            type: "operator",
+            name: "gcc",
+            count: count ?? 1,
+            operator: "gc" as Operator,
+          },
+          state: createVimState(),
+        };
+      }
+      
+      // Check for gc + motion
+      const motionResult = parseMotion(remaining.slice(2), newState, count ?? 1);
+      if (motionResult.complete && motionResult.command) {
+        const motion = motions[motionResult.command.name];
+        if (motion) {
+          return {
+            complete: true,
+            command: {
+              type: "operator",
+              name: `gc${motionResult.command.name}`,
+              count: count ?? 1,
+              operator: "gc" as Operator,
+              motion,
+            },
+            state: createVimState(),
+          };
+        }
+      }
+      
+      // Check for gc + text object
+      if (TEXT_OBJECT_PREFIXES.includes(thirdChar) && remaining.length >= 4) {
+        const textObjResult = parseTextObject(remaining.slice(2), newState, count ?? 1);
+        if (textObjResult.complete && textObjResult.command) {
+          return {
+            complete: true,
+            command: {
+              type: "operator",
+              name: `gc${remaining.slice(2)}`,
+              count: count ?? 1,
+              operator: "gc" as Operator,
+              textObject: textObjects[textObjResult.command.name.slice(1)],
+            },
+            state: createVimState(),
+          };
+        }
+      }
+      
+      return { complete: false, state: { ...newState, count, pendingOperator: "gc" as Operator } };
+    }
+  }
   
   // Check for operator
   if (OPERATORS.includes(firstChar) && !state.pendingOperator) {

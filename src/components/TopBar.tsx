@@ -2,6 +2,7 @@ import { For, Show, createSignal } from "solid-js";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useWindow } from "./WindowChrome";
 import { projectState, setCurrentProject, Project } from "../store/project";
+import { lspStore, getProjectDiagnosticCounts } from "../store/lsp";
 import "./TopBar.css";
 
 interface Props {
@@ -108,6 +109,27 @@ export function TopBar(props: Props) {
           </svg>
         </button>
       </div>
+      
+      {/* Project diagnostics - uses same icons/colors as editor status bar */}
+      {(() => {
+        // Access lspStore.diagnostics to make this reactive
+        const diagnosticCount = Object.keys(lspStore.diagnostics).length;
+        const counts = diagnosticCount >= 0 ? getProjectDiagnosticCounts(projectState.current?.path) : { errors: 0, warnings: 0, info: 0, hints: 0 };
+        const hasAny = counts.errors > 0 || counts.warnings > 0;
+        
+        return (
+          <Show when={hasAny}>
+            <div class="topbar__diagnostics">
+              <Show when={counts.errors > 0}>
+                <span class="topbar__diagnostic topbar__diagnostic--error">● {counts.errors}</span>
+              </Show>
+              <Show when={counts.warnings > 0}>
+                <span class="topbar__diagnostic topbar__diagnostic--warning">▲ {counts.warnings}</span>
+              </Show>
+            </div>
+          </Show>
+        );
+      })()}
     </div>
   );
 }

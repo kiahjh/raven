@@ -199,8 +199,8 @@ export function executeOperator(
     }
   }
   
-  // Handle line-wise operators (dd, cc, yy, >>, <<)
-  if (command.name === "dd" || command.name === "cc" || command.name === "yy" || command.name === ">>" || command.name === "<<") {
+  // Handle line-wise operators (dd, cc, yy, >>, <<, gcc)
+  if (command.name === "dd" || command.name === "cc" || command.name === "yy" || command.name === ">>" || command.name === "<<" || command.name === "gcc") {
     linewise = true;
     const startLine = state.cursor.line;
     const endLine = Math.min(startLine + command.count - 1, getLineCount(state.buffer) - 1);
@@ -341,6 +341,24 @@ export function executeOperator(
     case "<": {
       // Outdent
       const newBuffer = outdentLines(state.buffer, range.start.line, range.end.line, INDENT_SIZE);
+      return {
+        state: {
+          ...state,
+          buffer: newBuffer,
+          cursor: {
+            line: range.start.line,
+            column: findFirstNonWhitespace(newBuffer, range.start.line),
+          },
+          history: newHistory,
+          dirty: true,
+        },
+        modified: true,
+      };
+    }
+    
+    case "gc": {
+      // Toggle comments
+      const newBuffer = toggleCommentLines(state.buffer, range.start.line, range.end.line);
       return {
         state: {
           ...state,
@@ -1027,6 +1045,15 @@ export function executeAction(
       };
     }
     
+    case "gc": {
+      // gc in visual mode - toggle comments on selection
+      if (state.visualMode) {
+        return executeVisualOperator(state, "gc");
+      }
+      // gc in normal mode without motion - do nothing (shouldn't happen)
+      return { state, modified: false };
+    }
+    
     default:
       // Handle r<char> (replace character)
       if (action.startsWith("r") && action.length === 2) {
@@ -1259,6 +1286,21 @@ export function executeVisualOperator(
       };
     }
     
+    case "gc": {
+      // Toggle comments
+      const newBuffer = toggleCommentLines(state.buffer, start.line, end.line);
+      return {
+        state: {
+          ...baseState,
+          buffer: newBuffer,
+          cursor: { line: start.line, column: findFirstNonWhitespace(newBuffer, start.line) },
+          history: newHistory,
+          dirty: true,
+        },
+        modified: true,
+      };
+    }
+    
     default:
       // Just exit visual mode
       return {
@@ -1412,6 +1454,69 @@ function outdentLines(buffer: TextBuffer, startLine: number, endLine: number, sp
       removed++;
     }
     newLines[i] = newLines[i].slice(removed);
+  }
+  
+  return { lines: newLines };
+}
+
+/**
+ * Toggle line comments for a range of lines.
+ * Uses // style comments (suitable for Rust, JS, TS, etc.)
+ * If all non-empty lines are commented, uncomment them.
+ * Otherwise, comment all non-empty lines.
+ */
+function toggleCommentLines(buffer: TextBuffer, startLine: number, endLine: number): TextBuffer {
+  const newLines = [...buffer.lines];
+  const commentPrefix = "// ";
+  const commentPrefixNoSpace = "//";
+  
+  // Check if all non-empty lines in the range are commented
+  let allCommented = true;
+  for (let i = startLine; i <= endLine; i++) {
+    const trimmed = newLines[i].trimStart();
+    if (trimmed.length > 0 && !trimmed.startsWith(commentPrefixNoSpace)) {
+      allCommented = false;
+      break;
+    }
+  }
+  
+  if (allCommented) {
+    // Uncomment all lines
+    for (let i = startLine; i <= endLine; i++) {
+      const line = newLines[i];
+      const indent = line.match(/^(\s*)/)?.[1] ?? "";
+      const rest = line.slice(indent.length);
+      
+      if (rest.startsWith(commentPrefix)) {
+        // Remove "// " (with space)
+        newLines[i] = indent + rest.slice(commentPrefix.length);
+      } else if (rest.startsWith(commentPrefixNoSpace)) {
+        // Remove "//" (without space)
+        newLines[i] = indent + rest.slice(commentPrefixNoSpace.length);
+      }
+    }
+  } else {
+    // Comment all non-empty lines
+    // Find minimum indentation among non-empty lines
+    let minIndent = Infinity;
+    for (let i = startLine; i <= endLine; i++) {
+      const line = newLines[i];
+      if (line.trim().length > 0) {
+        const indent = line.match(/^(\s*)/)?.[1]?.length ?? 0;
+        minIndent = Math.min(minIndent, indent);
+      }
+    }
+    if (minIndent === Infinity) minIndent = 0;
+    
+    // Add comments at the minimum indentation level
+    for (let i = startLine; i <= endLine; i++) {
+      const line = newLines[i];
+      if (line.trim().length > 0) {
+        const before = line.slice(0, minIndent);
+        const after = line.slice(minIndent);
+        newLines[i] = before + commentPrefix + after;
+      }
+    }
   }
   
   return { lines: newLines };

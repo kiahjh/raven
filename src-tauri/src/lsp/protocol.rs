@@ -298,6 +298,8 @@ pub struct TextDocumentClientCapabilities {
     pub references: Option<ReferencesClientCapabilities>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub publish_diagnostics: Option<PublishDiagnosticsClientCapabilities>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_action: Option<CodeActionClientCapabilities>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -342,6 +344,51 @@ pub struct ReferencesClientCapabilities {}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PublishDiagnosticsClientCapabilities {}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeActionClientCapabilities {
+    /// Whether code action supports dynamic registration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dynamic_registration: Option<bool>,
+    /// The client supports code action literals.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_action_literal_support: Option<CodeActionLiteralSupport>,
+    /// Whether the client supports the `isPreferred` property.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_preferred_support: Option<bool>,
+    /// Whether the client supports the `disabled` property.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disabled_support: Option<bool>,
+    /// Whether the client supports the `data` property for lazy resolution.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_support: Option<bool>,
+    /// Whether the client supports resolve for additional properties.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolve_support: Option<CodeActionResolveSupport>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeActionLiteralSupport {
+    /// The code action kind values the client supports.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_action_kind: Option<CodeActionKindValueSet>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeActionKindValueSet {
+    /// The code action kind values the client supports.
+    pub value_set: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeActionResolveSupport {
+    /// The properties that the client can resolve lazily.
+    pub properties: Vec<String>,
+}
 
 /// Initialize request params.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -490,4 +537,238 @@ pub struct ReferenceParams {
 #[serde(rename_all = "camelCase")]
 pub struct ReferenceContext {
     pub include_declaration: bool,
+}
+
+// === Code Action Types ===
+
+/// Code action kind values (subset of the full LSP spec).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CodeActionKind(pub String);
+
+impl CodeActionKind {
+    pub const QUICK_FIX: &'static str = "quickfix";
+    pub const REFACTOR: &'static str = "refactor";
+    pub const REFACTOR_EXTRACT: &'static str = "refactor.extract";
+    pub const REFACTOR_INLINE: &'static str = "refactor.inline";
+    pub const REFACTOR_REWRITE: &'static str = "refactor.rewrite";
+    pub const SOURCE: &'static str = "source";
+    pub const SOURCE_ORGANIZE_IMPORTS: &'static str = "source.organizeImports";
+}
+
+/// Code action request params.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeActionParams {
+    pub text_document: TextDocumentIdentifier,
+    pub range: Range,
+    pub context: CodeActionContext,
+}
+
+/// Context for code actions, including diagnostics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeActionContext {
+    pub diagnostics: Vec<Diagnostic>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub only: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trigger_kind: Option<CodeActionTriggerKind>,
+}
+
+/// What triggered code actions request.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CodeActionTriggerKind(pub u8);
+
+impl CodeActionTriggerKind {
+    pub const INVOKED: Self = Self(1);
+    pub const AUTOMATIC: Self = Self(2);
+}
+
+/// A code action represents a change that can be performed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeAction {
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<Vec<Diagnostic>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_preferred: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub disabled: Option<CodeActionDisabled>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edit: Option<WorkspaceEdit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<Command>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+}
+
+/// Reason why a code action is disabled.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodeActionDisabled {
+    pub reason: String,
+}
+
+/// An LSP Command (not to be confused with a code action).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Command {
+    pub title: String,
+    pub command: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<Vec<serde_json::Value>>,
+}
+
+/// Workspace edit - a collection of changes to documents.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceEdit {
+    /// Map of file URI to list of text edits.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changes: Option<std::collections::HashMap<String, Vec<TextEdit>>>,
+    /// More complex document changes (may include create/rename/delete).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_changes: Option<Vec<DocumentChange>>,
+}
+
+/// A document change can be a text edit or resource operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DocumentChange {
+    Edit(TextDocumentEdit),
+    Create(CreateFile),
+    Rename(RenameFile),
+    Delete(DeleteFile),
+}
+
+/// A text edit on a specific versioned document.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TextDocumentEdit {
+    pub text_document: OptionalVersionedTextDocumentIdentifier,
+    pub edits: Vec<TextEditOrAnnotated>,
+}
+
+/// Text document identifier with optional version.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptionalVersionedTextDocumentIdentifier {
+    pub uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<i32>,
+}
+
+/// Text edit or annotated text edit.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TextEditOrAnnotated {
+    TextEdit(TextEdit),
+    Annotated(AnnotatedTextEdit),
+}
+
+/// A text edit with an annotation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotatedTextEdit {
+    pub range: Range,
+    pub new_text: String,
+    pub annotation_id: String,
+}
+
+/// Create file operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateFile {
+    pub kind: String, // "create"
+    pub uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<CreateFileOptions>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateFileOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overwrite: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ignore_if_exists: Option<bool>,
+}
+
+/// Rename file operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameFile {
+    pub kind: String, // "rename"
+    pub old_uri: String,
+    pub new_uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<RenameFileOptions>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameFileOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overwrite: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ignore_if_exists: Option<bool>,
+}
+
+/// Delete file operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteFile {
+    pub kind: String, // "delete"
+    pub uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<DeleteFileOptions>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteFileOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recursive: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ignore_if_not_exists: Option<bool>,
+}
+
+/// Response from code action request - can be CodeAction or Command.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CodeActionResponse {
+    Actions(Vec<CodeActionOrCommand>),
+}
+
+/// Code action response item - either a full CodeAction or just a Command.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CodeActionOrCommand {
+    CodeAction(CodeAction),
+    Command(Command),
+}
+
+impl CodeActionResponse {
+    /// Extract code actions from the response.
+    pub fn into_actions(self) -> Vec<CodeAction> {
+        match self {
+            Self::Actions(items) => items
+                .into_iter()
+                .filter_map(|item| match item {
+                    CodeActionOrCommand::CodeAction(action) => Some(action),
+                    CodeActionOrCommand::Command(cmd) => Some(CodeAction {
+                        title: cmd.title.clone(),
+                        kind: None,
+                        diagnostics: None,
+                        is_preferred: None,
+                        disabled: None,
+                        edit: None,
+                        command: Some(cmd),
+                        data: None,
+                    }),
+                })
+                .collect(),
+        }
+    }
 }

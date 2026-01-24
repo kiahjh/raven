@@ -9,8 +9,9 @@ use daemon::{
 };
 use file::{file_exists, list_files, read_file, write_file};
 use lsp::{
-    lsp_change_document, lsp_close_document, lsp_completion, lsp_find_root, lsp_goto_definition,
-    lsp_hover, lsp_open_document, lsp_references, lsp_start, lsp_stop, LspManager,
+    lsp_change_document, lsp_close_document, lsp_code_actions, lsp_completion, lsp_find_root,
+    lsp_goto_definition, lsp_hover, lsp_open_document, lsp_references, lsp_resolve_code_action,
+    lsp_start, lsp_stop, LspManager,
 };
 use pty::{pty_kill, pty_resize, pty_spawn, pty_write, PtyManager};
 use tauri::WebviewWindow;
@@ -52,6 +53,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(PtyManager::new())
         .manage(DaemonManager::new())
         .manage(LspManager::new())
@@ -91,7 +93,9 @@ pub fn run() {
             lsp_goto_definition,
             lsp_hover,
             lsp_completion,
-            lsp_references
+            lsp_references,
+            lsp_code_actions,
+            lsp_resolve_code_action
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -98,3 +98,64 @@ export function pathToUri(path: string): string {
   }
   return `file://${path}`;
 }
+
+// === Code Action Types ===
+
+/** Text edit - a change to a document. */
+export interface TextEdit {
+  range: Range;
+  newText: string;
+}
+
+/** Document change - edits to a specific document. */
+export interface DocumentChange {
+  uri: string;
+  edits: TextEdit[];
+}
+
+/** Workspace edit - a collection of changes to documents. */
+export interface WorkspaceEdit {
+  /** Map of file URI to list of text edits. */
+  changes?: Record<string, TextEdit[]>;
+  /** More complex document changes. */
+  documentChanges?: DocumentChange[];
+}
+
+/** Code action kinds. */
+export const CodeActionKind = {
+  QuickFix: "quickfix",
+  Refactor: "refactor",
+  RefactorExtract: "refactor.extract",
+  RefactorInline: "refactor.inline",
+  RefactorRewrite: "refactor.rewrite",
+  Source: "source",
+  SourceOrganizeImports: "source.organizeImports",
+} as const;
+
+export type CodeActionKindType = (typeof CodeActionKind)[keyof typeof CodeActionKind];
+
+/** A code action represents a change that can be performed. */
+export interface CodeAction {
+  /** Human-readable title of the code action. */
+  title: string;
+  /** The kind of the code action (quickfix, refactor, etc.). */
+  kind?: string;
+  /** Whether this is the preferred action of its kind. */
+  isPreferred?: boolean;
+  /** If disabled, the reason why. */
+  disabledReason?: string;
+  /** The workspace edit to apply. */
+  edit?: WorkspaceEdit;
+  /** Data preserved for resolve requests. */
+  data?: unknown;
+  /** Whether this action needs to be resolved before execution. */
+  needsResolve: boolean;
+}
+
+/** Code action for resolve request (minimal data sent to backend). */
+export interface CodeActionForResolve {
+  title: string;
+  kind?: string;
+  isPreferred?: boolean;
+  data?: unknown;
+}

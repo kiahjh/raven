@@ -284,6 +284,28 @@ pub fn spawn_and_initialize(
                 }),
                 references: Some(ReferencesClientCapabilities {}),
                 publish_diagnostics: Some(PublishDiagnosticsClientCapabilities {}),
+                code_action: Some(CodeActionClientCapabilities {
+                    dynamic_registration: Some(false),
+                    code_action_literal_support: Some(CodeActionLiteralSupport {
+                        code_action_kind: Some(CodeActionKindValueSet {
+                            value_set: vec![
+                                "quickfix".to_string(),
+                                "refactor".to_string(),
+                                "refactor.extract".to_string(),
+                                "refactor.inline".to_string(),
+                                "refactor.rewrite".to_string(),
+                                "source".to_string(),
+                                "source.organizeImports".to_string(),
+                            ],
+                        }),
+                    }),
+                    is_preferred_support: Some(true),
+                    disabled_support: Some(true),
+                    data_support: Some(true),
+                    resolve_support: Some(CodeActionResolveSupport {
+                        properties: vec!["edit".to_string()],
+                    }),
+                }),
             }),
         },
     };
