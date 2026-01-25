@@ -1,0 +1,5 @@
+/* CursorPopup - Base styles for cursor-anchored popups */
+.cursor-popup {
+  position: fixed;
+  z-index: 1000;
+}

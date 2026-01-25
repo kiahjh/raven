@@ -401,15 +401,11 @@
 
 /* Hover popup */
 .editor-surface__hover {
-  position: fixed;
-  max-width: 600px;
-  max-height: 350px;
   overflow: auto;
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  z-index: 1000;
   animation: slideDown var(--transition-normal);
 }
 
@@ -526,16 +522,13 @@
 
 /* Completion menu - compact, beautiful */
 .editor-surface__completion {
-  position: fixed;
   min-width: 280px;
   max-width: 450px;
-  max-height: 200px;
   overflow-y: auto;
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 1000;
   padding: 4px;
   animation: slideUp var(--transition-fast);
 }
@@ -674,74 +667,41 @@
   flex-shrink: 0;
 }
 
-/* Code actions indicator/menu */
-.editor-surface__code-actions {
-  position: fixed;
+/* Code actions indicator (blue pill) */
+.editor-surface__code-actions-indicator {
   background: var(--accent);
   border-radius: 100px; /* Pill shape */
   box-shadow: var(--shadow-sm);
-  z-index: 1000;
   cursor: pointer;
-  overflow: hidden;
-  width: 36px;
-  transform: translateX(-18px); /* Center: half of 36px */
-  transition: width 150ms ease-out, transform 150ms ease-out, background 150ms ease-out, border-radius 150ms ease-out, box-shadow 150ms ease-out;
-}
-
-.editor-surface__code-actions:hover {
-  background: var(--accent-hover);
-}
-
-.editor-surface__code-actions--expanded {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  cursor: default;
-  width: 320px;
-  transform: translateX(-160px); /* Center: half of 320px */
-}
-
-.editor-surface__code-actions--expanded:hover {
-  background: var(--bg-elevated);
-}
-
-.editor-surface__code-actions-header {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2px;
   padding: 3px 8px;
   color: white;
-  max-height: 24px;
-  overflow: hidden;
-  transition: max-height 150ms ease-out, opacity 150ms ease-out, padding 150ms ease-out;
 }
 
-.editor-surface__code-actions--expanded .editor-surface__code-actions-header {
-  max-height: 0;
-  opacity: 0;
-  padding: 0;
+.editor-surface__code-actions-indicator:hover {
+  background: var(--accent-hover);
 }
 
-.editor-surface__code-actions-icon {
+.editor-surface__code-actions-indicator-icon {
   flex-shrink: 0;
   width: 12px;
   height: 12px;
 }
 
-.editor-surface__code-actions-count {
+.editor-surface__code-actions-indicator-count {
   font-size: 10px;
   font-weight: 600;
 }
 
-.editor-surface__code-actions-list {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 150ms ease-out;
-}
-
-.editor-surface__code-actions--expanded .editor-surface__code-actions-list {
+/* Code actions menu (dropdown) */
+.editor-surface__code-actions-menu {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
   max-height: 260px;
   overflow-y: auto;
   padding: 4px;

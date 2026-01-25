@@ -14,6 +14,7 @@ import type { Diagnostic, CompletionItem, CodeAction, TextEdit, WorkspaceEdit } 
 import { uriToPath } from "../lsp/types";
 import { renderMarkdown } from "../utils/markdown";
 import { getCompletionIcon, IconMacro, IconLightbulb, IconQuickfix, IconRefactor, IconExtract, IconSource } from "./icons";
+import { CursorPopup } from "./CursorPopup";
 import "./EditorSurface.css";
 import "./icons/icons.css";
 
@@ -53,13 +54,15 @@ export function EditorSurface(props: Props) {
   
   // Hover popup state
   const [hoverContent, setHoverContent] = createSignal<string | null>(null);
-  const [hoverPosition, setHoverPosition] = createSignal<{ x: number; y: number; flipUp: boolean } | null>(null);
+  const [hoverPosition, setHoverPosition] = createSignal<{ x: number; anchorTop: number; anchorBottom: number } | null>(null);
+  const [hoverFlipped, setHoverFlipped] = createSignal(false);
   const [hoverAnchorCursor, setHoverAnchorCursor] = createSignal<{ line: number; column: number } | null>(null);
   
   // Completion menu state
   const [completionItems, setCompletionItems] = createSignal<CompletionItem[]>([]);
   const [completionIndex, setCompletionIndex] = createSignal(0);
-  const [completionPosition, setCompletionPosition] = createSignal<{ x: number; y: number; flipUp: boolean } | null>(null);
+  const [completionPosition, setCompletionPosition] = createSignal<{ x: number; anchorTop: number; anchorBottom: number } | null>(null);
+  const [completionFlipped, setCompletionFlipped] = createSignal(false);
   
   // References list state
   const [referencesLocations, setReferencesLocations] = createSignal<Array<{ uri: string; line: number; col: number }>>([]);
@@ -72,7 +75,7 @@ export function EditorSurface(props: Props) {
   
   // Code action indicator state (shows count on cursor rest, expands to menu on ga)
   const [codeActionCount, setCodeActionCount] = createSignal<number>(0);
-  const [codeActionIndicatorPosition, setCodeActionIndicatorPosition] = createSignal<{ x: number; y: number } | null>(null);
+  const [codeActionIndicatorPosition, setCodeActionIndicatorPosition] = createSignal<{ x: number; anchorTop: number; anchorBottom: number } | null>(null);
   
   // Toast notification state
   const [toastMessage, setToastMessage] = createSignal<string | null>(null);
@@ -404,7 +407,8 @@ export function EditorSurface(props: Props) {
               const cursorRect = cursorEl.getBoundingClientRect();
               setCodeActionIndicatorPosition({ 
                 x: cursorRect.left + (cursorRect.width / 2),
-                y: cursorRect.bottom + 4
+                anchorTop: cursorRect.top,
+                anchorBottom: cursorRect.bottom
               });
             } else {
               // Fallback: estimate position
@@ -413,7 +417,8 @@ export function EditorSurface(props: Props) {
               const charWidth = 8.4;
               setCodeActionIndicatorPosition({ 
                 x: contentRect.left + (state().cursor.column * charWidth) + (charWidth / 2),
-                y: contentRect.bottom + 4
+                anchorTop: contentRect.top,
+                anchorBottom: contentRect.bottom
               });
             }
           }
@@ -561,17 +566,7 @@ export function EditorSurface(props: Props) {
       if (lineEl) {
         const rect = lineEl.getBoundingClientRect();
         const x = rect.left + column * 7.8; // approximate char width
-        
-        // Check if we should flip the popup below the cursor
-        // Assume max hover height of 350px
-        const hoverHeight = 350;
-        const spaceAbove = rect.top;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const flipUp = spaceAbove >= hoverHeight || spaceAbove > spaceBelow;
-        
-        // If flipping up, position at top of line; otherwise at bottom
-        const y = flipUp ? rect.top : rect.bottom;
-        setHoverPosition({ x, y, flipUp });
+        setHoverPosition({ x, anchorTop: rect.top, anchorBottom: rect.bottom });
       }
       
       setHoverContent(result.contents);
@@ -678,17 +673,7 @@ export function EditorSurface(props: Props) {
         const rect = lineEl.getBoundingClientRect();
         const menuColumn = prefix.length > 0 ? startColumn : column;
         const x = rect.left + menuColumn * 7.8;
-        
-        // Check if we should flip the menu above the cursor
-        // Assume max menu height of 220px (10 items * ~22px each)
-        const menuHeight = 220;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const spaceAbove = rect.top;
-        const flipUp = spaceBelow < menuHeight && spaceAbove > spaceBelow;
-        
-        // If flipping up, position at top of line; otherwise at bottom
-        const y = flipUp ? rect.top : rect.bottom;
-        setCompletionPosition({ x, y, flipUp });
+        setCompletionPosition({ x, anchorTop: rect.top, anchorBottom: rect.bottom });
       }
       
       setCompletionItems(filteredItems);
@@ -1048,7 +1033,8 @@ export function EditorSurface(props: Props) {
             const cursorRect = cursorEl.getBoundingClientRect();
             setCodeActionIndicatorPosition({ 
               x: cursorRect.left + (cursorRect.width / 2),
-              y: cursorRect.bottom + 4
+              anchorTop: cursorRect.top,
+              anchorBottom: cursorRect.bottom
             });
           } else {
             const contentEl = lineEl.querySelector(".editor-surface__line-content");
@@ -1056,7 +1042,8 @@ export function EditorSurface(props: Props) {
             const charWidth = 8.4;
             setCodeActionIndicatorPosition({ 
               x: contentRect.left + (column * charWidth) + (charWidth / 2),
-              y: contentRect.bottom + 4
+              anchorTop: contentRect.top,
+              anchorBottom: contentRect.bottom
             });
           }
         }
@@ -2715,32 +2702,28 @@ export function EditorSurface(props: Props) {
             </div>
           </Show>
           <Show when={hoverContent() && hoverPosition()}>
-            <div
-              class="editor-surface__hover"
-              classList={{ "editor-surface__hover--flip-down": !hoverPosition()!.flipUp }}
-              style={{
-                left: `${hoverPosition()!.x}px`,
-                top: hoverPosition()!.flipUp ? "auto" : `${hoverPosition()!.y}px`,
-                bottom: hoverPosition()!.flipUp ? `${window.innerHeight - hoverPosition()!.y + 4}px` : "auto",
-                transform: hoverPosition()!.flipUp ? "none" : "none",
-              }}
+            <CursorPopup
+              position={hoverPosition}
+              preferredPlacement="below"
+              maxWidth={600}
+              maxHeight={350}
+              class={`editor-surface__hover ${hoverFlipped() ? "" : "editor-surface__hover--flip-down"}`}
+              onFlip={setHoverFlipped}
               onClick={closeHover}
             >
               <div 
                 class="editor-surface__hover-content"
                 innerHTML={renderMarkdown(hoverContent()!)}
               />
-            </div>
+            </CursorPopup>
           </Show>
           <Show when={completionItems().length > 0 && completionPosition()}>
-            <div
-              class="editor-surface__completion"
-              classList={{ "editor-surface__completion--flip-up": completionPosition()!.flipUp }}
-              style={{
-                left: `${completionPosition()!.x}px`,
-                top: completionPosition()!.flipUp ? "auto" : `${completionPosition()!.y}px`,
-                bottom: completionPosition()!.flipUp ? `${window.innerHeight - completionPosition()!.y}px` : "auto",
-              }}
+            <CursorPopup
+              position={completionPosition}
+              preferredPlacement="below"
+              maxHeight={200}
+              class={`editor-surface__completion ${completionFlipped() ? "editor-surface__completion--flip-up" : ""}`}
+              onFlip={setCompletionFlipped}
             >
               <For each={completionItems().slice(0, 10)}>
                 {(item, index) => {
@@ -2773,7 +2756,7 @@ export function EditorSurface(props: Props) {
                   +{completionItems().length - 10} more
                 </div>
               </Show>
-            </div>
+            </CursorPopup>
           </Show>
           <Show when={showReferences() && referencesLocations().length > 0}>
             <div class="editor-surface__references">
@@ -2801,51 +2784,56 @@ export function EditorSurface(props: Props) {
               </div>
             </div>
           </Show>
-          <Show when={(codeActionCount() > 0 || codeActionItems().length > 0) && codeActionIndicatorPosition() && !hoverContent() && props.focused}>
-            <div
-              class="editor-surface__code-actions"
-              classList={{ "editor-surface__code-actions--expanded": codeActionItems().length > 0 }}
-              style={{
-                left: `${codeActionIndicatorPosition()!.x}px`,
-                top: `${codeActionIndicatorPosition()!.y}px`,
-              }}
-              onClick={() => codeActionItems().length === 0 && handleCodeActions()}
-              title={codeActionItems().length === 0 ? `${codeActionCount()} action${codeActionCount() > 1 ? "s" : ""} available (ga)` : undefined}
+          <Show when={codeActionCount() > 0 && codeActionItems().length === 0 && codeActionIndicatorPosition() && !hoverContent() && props.focused}>
+            <CursorPopup
+              position={codeActionIndicatorPosition}
+              preferredPlacement="below"
+              horizontalAlign="center"
+              width={36}
+              class="editor-surface__code-actions-indicator"
+              onClick={handleCodeActions}
+              title={`${codeActionCount()} action${codeActionCount() > 1 ? "s" : ""} available (ga)`}
             >
-              <div class="editor-surface__code-actions-header">
-                <IconLightbulb size={12} class="editor-surface__code-actions-icon" />
-                <span class="editor-surface__code-actions-count">{codeActionCount()}</span>
-              </div>
-              <div class="editor-surface__code-actions-list">
-                <For each={codeActionItems().slice(0, 10)}>
-                  {(action, index) => {
-                    const kindInfo = getCodeActionKindInfo(action.kind);
-                    const KindIcon = kindInfo.icon;
-                    return (
-                      <div
-                        class="editor-surface__code-action-item"
-                        classList={{ 
-                          "editor-surface__code-action-item--selected": index() === codeActionIndex(),
-                          "editor-surface__code-action-item--preferred": action.isPreferred,
-                        }}
-                        onClick={(e) => { e.stopPropagation(); executeCodeAction(index()); }}
-                      >
-                        <span class={`editor-surface__code-action-kind editor-surface__code-action-kind--${kindInfo.label}`}>
-                          <KindIcon size={12} />
-                        </span>
-                        <span class="editor-surface__code-action-title" innerHTML={renderCodeActionTitle(action.title)} />
-                        <span class="editor-surface__code-action-key">{index() + 1}</span>
-                      </div>
-                    );
-                  }}
-                </For>
-                <Show when={codeActionItems().length > 10}>
-                  <div class="editor-surface__code-actions-more">
-                    +{codeActionItems().length - 10} more
-                  </div>
-                </Show>
-              </div>
-            </div>
+              <IconLightbulb size={12} class="editor-surface__code-actions-indicator-icon" />
+              <span class="editor-surface__code-actions-indicator-count">{codeActionCount()}</span>
+            </CursorPopup>
+          </Show>
+          <Show when={codeActionItems().length > 0 && codeActionIndicatorPosition() && !hoverContent() && props.focused}>
+            <CursorPopup
+              position={codeActionIndicatorPosition}
+              preferredPlacement="below"
+              horizontalAlign="center"
+              width={320}
+              class="editor-surface__code-actions-menu"
+            >
+              <For each={codeActionItems().slice(0, 10)}>
+                {(action, index) => {
+                  const kindInfo = getCodeActionKindInfo(action.kind);
+                  const KindIcon = kindInfo.icon;
+                  return (
+                    <div
+                      class="editor-surface__code-action-item"
+                      classList={{ 
+                        "editor-surface__code-action-item--selected": index() === codeActionIndex(),
+                        "editor-surface__code-action-item--preferred": action.isPreferred,
+                      }}
+                      onClick={() => executeCodeAction(index())}
+                    >
+                      <span class={`editor-surface__code-action-kind editor-surface__code-action-kind--${kindInfo.label}`}>
+                        <KindIcon size={12} />
+                      </span>
+                      <span class="editor-surface__code-action-title" innerHTML={renderCodeActionTitle(action.title)} />
+                      <span class="editor-surface__code-action-key">{index() + 1}</span>
+                    </div>
+                  );
+                }}
+              </For>
+              <Show when={codeActionItems().length > 10}>
+                <div class="editor-surface__code-actions-more">
+                  +{codeActionItems().length - 10} more
+                </div>
+              </Show>
+            </CursorPopup>
           </Show>
           <Show when={toastMessage()}>
             <div class="editor-surface__toast">
